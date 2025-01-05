@@ -57,15 +57,15 @@ def responsesFrom(ip):
 
 st.title("Salles Disponible ESIEE Paris")
 
-col1, col2 = st.columns([1, 2], gap="large")
+col1, col2 = st.columns([2, 1], gap="large")
 
 with col1:
     search_query = st.text_input("Rechercher une salle", "")
-    cols = st.columns(2)
+    cols = st.columns(4)
     filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower()]
     for i, ip in enumerate(filtered_rooms):
-        with cols[i % 2].expander(f"Salle n°{ip[0]}"):
-            st.text(f"Disponible jusqu'à -> {ip[1]}")
+        with cols[i % 4].expander(f"Salle n°{ip[0]}"):
+            st.text(f"Libre jusqu'à :  {ip[1]}")
 
 with col2:
     st.header("Informations")
