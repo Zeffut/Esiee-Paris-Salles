@@ -84,3 +84,9 @@ with col2:
     assurer que l'estimation de disponibilité est correcte et à le reporter à olivier.truong@edu.esiee.fr
     si vous constatez que la corrélation est mauvaise. (avec des screenshots svp <3).
     """)
+
+    st.header("Explication")
+    st.markdown("""
+    Les salles présentes sont les salles libres. Le menu déroulant des salles indique jusqu'à quand elles sont disponibles.
+    Les salles avec l'émoji 🏛️ sont des amphithéâtres, tandis que les autres salles avec l'émoji 🏫 sont des salles normales.
+    """)
