@@ -64,7 +64,7 @@ with col1:
     cols = st.columns(4)
     filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower()]
     for i, ip in enumerate(filtered_rooms):
-        with cols[i % 4].expander(f"Salle n°{ip[0]}"):
+        with cols[i % 4].expander(f"{ip[0]}"):
             st.text(f"Libre jusqu'à :  {ip[1]}")
 
 with col2:
