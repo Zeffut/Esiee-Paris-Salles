@@ -610,10 +610,10 @@ class AdeRequest:
                     elif ((dtn.hour * 60) + dtn.minute) < ((te[0] * 60) + te[1]):
                         break
                     elif i == (len(busy) - 1):
-                        v.update({"isFree": True, "freeUntil": "demain ^^"})
+                        v.update({"isFree": True, "freeUntil": "demain"})
                         free[k] = v
                 if busy == []:
-                    v.update({"isFree": True, "freeUntil": "demain ^^"})
+                    v.update({"isFree": True, "freeUntil": "demain"})
                     free[k] = v
         return free
 
