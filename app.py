@@ -66,7 +66,9 @@ with col1:
     for i, ip in enumerate(filtered_rooms):
         room_name = ip[0]
         if room_name in ["0110", "0210", "0160", "0260"]:
-            room_name += " 🎓"
+            room_name += " 🏛️"
+        else:
+            room_name += " 🏫"
         with cols[i % 2].expander(f"Salle n°{room_name}"):
             st.text(f"Disponible jusqu'à -> {ip[1]}")
 
