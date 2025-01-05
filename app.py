@@ -14,7 +14,8 @@ freeRooms = Ade.getCurrentsFreeRooms()
 def import_allowed():
     tab = []
     for room in freeRooms:
-        tab.append([room, freeRooms[room]["freeUntil"]])
+        emoji = " 🏛️" if room in ["110", "210", "160", "260"] else ""
+        tab.append([room, freeRooms[room]["freeUntil"], emoji])
     return tab
 
 def import_response_data():
@@ -50,7 +51,8 @@ def responsesFrom(ip):
     responses = "\r\n\r\n"
     for resp in st.session_state['response_data']:
         if resp[0] == ip:
-            responses += str(ip) + "    capacité: " + str(resp[1]) + "    disponible jusqu'à: " + str(resp[2])
+            emoji = " 🏛️" if ip in ["110", "210", "160", "260"] else ""
+            responses += str(ip) + emoji + "    capacité: " + str(resp[1]) + "    disponible jusqu'à: " + str(resp[2])
             if resp[3] != []:
                 responses  += "\noccupée durrant:\n" + str("".join(busyUntil(x) for x in resp[3])) + "\r\n\r\n"
     return responses
@@ -64,7 +66,7 @@ with col1:
     cols = st.columns(4)
     filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower()]
     for i, ip in enumerate(filtered_rooms):
-        with cols[i % 4].expander(f"{ip[0]}"):
+        with cols[i % 4].expander(f"{ip[0]}{ip[2]}"):
             st.text(f"Libre jusqu'à :  {ip[1]}")
 
 with col2:
