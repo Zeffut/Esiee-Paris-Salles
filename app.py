@@ -61,7 +61,7 @@ col1, col2 = st.columns([2, 1], gap="large")
 
 with col1:
     search_query = st.text_input("Rechercher une salle", "")
-    cols = st.columns(4)
+    cols = st.columns(6)
     filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower()]
     for i, ip in enumerate(filtered_rooms):
         room_name = ip[0]
@@ -69,7 +69,7 @@ with col1:
             room_name += " 🏛️"
         else:
             room_name += " 🏫"
-        with cols[i % 4].expander(f"{room_name}"):
+        with cols[i % 6].expander(f"{room_name}"):
             st.text(f"Disponible jusqu'à -> {ip[1]}")
 
 with col2:
