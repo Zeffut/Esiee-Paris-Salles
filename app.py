@@ -69,7 +69,7 @@ with col1:
             room_name += " 🏛️"
         else:
             room_name += " 🏫"
-        with cols[i % 2].expander(f"Salle n°{room_name}"):
+        with cols[i % 2].expander(f"{room_name}"):
             st.text(f"Disponible jusqu'à -> {ip[1]}")
 
 with col2:
