@@ -44,7 +44,7 @@ Thread(target=reloadData).start()
 
 def busyUntil(tab):
     ts, te = tab
-    return f'- {str(ts[0]).zfill(2)}h{str(ts[1]).zfill(2)} à {str(te[0]).zfill(2)}h{str(te[1]).zfill(2)} '
+    return f'- {str(ts[0]).zfill(2)}h{str(ts[1]).zfill(2)} à {str(te[0]).zfill(2)}h{str(te[1]).zfill(2)}\n'
 
 def responsesFrom(ip):
     responses = "\r\n\r\n"
@@ -71,11 +71,12 @@ with col1:
         with cols[i % 6].expander(f"{room_name}"):
             room_info = next((room for room in st.session_state['response_data'] if room[0] == ip[0]), None)
             if room_info:
-                busy_periods = "".join(busyUntil(x) for x in room_info[3]) if room_info[3] else "Aucune occupation"
+                busy_periods = "\n".join(busyUntil(x) for x in room_info[3]) if room_info[3] else "Aucune occupation"
                 st.markdown(f"""
                     **Disponible jusqu'à**: {ip[1]}  
                     **Capacité**: {room_info[1]}  
-                    **Occupée entre**: {busy_periods}
+                    **Occupée entre**:  
+                    {busy_periods}
                 """)
 
 with col2:
