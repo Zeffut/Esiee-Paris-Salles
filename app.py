@@ -125,4 +125,7 @@ with col2:
     des heures auxquelles la salle se voit occupée. Je vous conseille de regarder ces infos juste pour vous
     assurer que l'estimation de disponibilité est correcte et à le reporter à olivier.truong@edu.esiee.fr
     si vous constatez que la corrélation est mauvaise. (avec des screenshots svp <3).
+
+
+    Made with ❤️ by Zeffut and Glz_SQL
     """)
