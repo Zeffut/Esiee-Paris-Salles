@@ -2,33 +2,49 @@ import streamlit as st
 from base64 import b64decode, b64encode
 from time import ctime, sleep, time
 from threading import Thread
-import gzip, requests
+import gzip, requests, json
 from getFreeRoomsFromAde2 import AdeRequest
 
 st.set_page_config(layout="wide")
 
-Ade = AdeRequest()
-infos = Ade.getRoomsInfos()
-freeRooms = Ade.getCurrentsFreeRooms()
+global freeRooms
+freeRooms = {}
+try:
+    j = requests.get("https://olivier-truong-ade-free-rooms.hf.space/api").text
+    freeRooms = json.loads(j)
+except:
+    pass
+if freeRooms == {}:
+    Ade = AdeRequest()
+    infos = Ade.getRoomsInfos()
+    freeRooms = Ade.getCurrentsFreeRooms()
 
 def import_allowed():
+    global freeRooms
     tab = []
     for room in freeRooms:
         tab.append([room, freeRooms[room]["freeUntil"]])
     return tab
 
 def import_response_data():
+    global freeRooms
     tab = []
     for room in freeRooms:
         tab.append([room, freeRooms[room]["capacity"], freeRooms[room]["freeUntil"], freeRooms[room]["busy"]])
     return tab
 
 def reloadData():
+    global freeRooms
     while True:
         try:
             sleep(600)
-            infos = Ade.getRoomsInfos()
-            freeRooms = Ade.getCurrentsFreeRooms()
+            try:
+                j = requests.get("https://olivier-truong-ade-free-rooms.hf.space/api").text
+                freeRooms = json.loads(j)
+            except:
+                Ade = AdeRequest()
+                infos = Ade.getRoomsInfos()
+                freeRooms = Ade.getCurrentsFreeRooms()
             st.session_state['response_data'] = import_response_data() # [numRoom: str, capacity: int, freeUntil: str, busy: tuple]
             st.session_state['allowed'] = import_allowed() # [numRoom: str, freeUtil: str]
             print("[+] Refresh Data From Ade")
