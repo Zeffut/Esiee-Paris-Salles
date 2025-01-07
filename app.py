@@ -52,7 +52,7 @@ def responsesFrom(ip):
         if resp[0] == ip:
             responses += str(ip) + "    capacité: " + str(resp[1]) + "    disponible jusqu'à: " + str(resp[2])
             if resp[3] != []:
-                responses  += "\noccupée durrant:\n" + str("".join(busyUntil(x) for x in resp[3])) + "\r\n\r\n"
+                responses  += "\noccupée entre:\n" + str("".join(busyUntil(x) for x in resp[3])) + "\r\n\r\n"
     return responses
 
 col1, col2 = st.columns([2, 1], gap="large")
