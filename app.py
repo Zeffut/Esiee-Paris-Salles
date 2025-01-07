@@ -69,14 +69,14 @@ with col1:
         else:
             room_name += " 🏫"
         with cols[i % 6].expander(f"{room_name}"):
-            st.text(f"Disponible jusqu'à -> {ip[1]}")
             room_info = next((room for room in st.session_state['response_data'] if room[0] == ip[0]), None)
             if room_info:
-                st.text(f"Capacité: {room_info[1]}")
-                if room_info[3]:
-                    st.text("Occupée entre:")
-                    for busy_period in room_info[3]:
-                        st.text(busyUntil(busy_period))
+                busy_periods = "".join(busyUntil(x) for x in room_info[3]) if room_info[3] else "Aucune occupation"
+                st.markdown(f"""
+                    **Disponible jusqu'à**: {ip[1]}  
+                    **Capacité**: {room_info[1]}  
+                    **Occupée entre**: {busy_periods}
+                """)
 
 with col2:
     st.header("Explication")
