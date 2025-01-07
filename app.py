@@ -29,10 +29,11 @@ def import_allowed():
 def import_response_data():
     global freeRooms
     tab = []
-    boardKind = ""
+    
+    for room in freeRooms:
+        boardKind = ""
         if "board" in freeRooms[room]:
             boardKind = freeRooms[room].get("board")
-    for room in freeRooms:
         tab.append([room, freeRooms[room]["capacity"], freeRooms[room]["freeUntil"], freeRooms[room]["busy"], boardKind])
     return tab
 
