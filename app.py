@@ -2,49 +2,33 @@ import streamlit as st
 from base64 import b64decode, b64encode
 from time import ctime, sleep, time
 from threading import Thread
-import gzip, requests, json
+import gzip, requests
 from getFreeRoomsFromAde2 import AdeRequest
 
 st.set_page_config(layout="wide")
 
-global freeRooms
-freeRooms = {}
-try:
-    j = requests.get("https://olivier-truong-ade-free-rooms.hf.space/api").text
-    freeRooms = json.loads(j)
-except:
-    pass
-if freeRooms == {}:
-    Ade = AdeRequest()
-    infos = Ade.getRoomsInfos()
-    freeRooms = Ade.getCurrentsFreeRooms()
+Ade = AdeRequest()
+infos = Ade.getRoomsInfos()
+freeRooms = Ade.getCurrentsFreeRooms()
 
 def import_allowed():
-    global freeRooms
     tab = []
     for room in freeRooms:
         tab.append([room, freeRooms[room]["freeUntil"]])
     return tab
 
 def import_response_data():
-    global freeRooms
     tab = []
     for room in freeRooms:
         tab.append([room, freeRooms[room]["capacity"], freeRooms[room]["freeUntil"], freeRooms[room]["busy"]])
     return tab
 
 def reloadData():
-    global freeRooms
     while True:
         try:
             sleep(600)
-            try:
-                j = requests.get("https://olivier-truong-ade-free-rooms.hf.space/api").text
-                freeRooms = json.loads(j)
-            except:
-                Ade = AdeRequest()
-                infos = Ade.getRoomsInfos()
-                freeRooms = Ade.getCurrentsFreeRooms()
+            infos = Ade.getRoomsInfos()
+            freeRooms = Ade.getCurrentsFreeRooms()
             st.session_state['response_data'] = import_response_data() # [numRoom: str, capacity: int, freeUntil: str, busy: tuple]
             st.session_state['allowed'] = import_allowed() # [numRoom: str, freeUtil: str]
             print("[+] Refresh Data From Ade")
@@ -75,7 +59,7 @@ col1, col2 = st.columns([2, 1], gap="large")
 
 with col1:
     st.title("Salles Disponible ESIEE Paris")
-    search_query = st.text_input("Rechercher une salle", "")
+    search_query = st.text_input("Rechercher une salle", "Numéro de salle")
     cols = st.columns(6)
     filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower()]
     for i, ip in enumerate(filtered_rooms):
