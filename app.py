@@ -88,7 +88,7 @@ with col1:
             room_info = next((room for room in st.session_state['response_data'] if room[0] == ip[0]), None)
             if room_info:
                 busy_periods = [busyUntil(x) for x in room_info[3]] if room_info[3] and ip[1] != "demain" else []
-                busy_table = "\n".join([f'- {start} à {end}' for start, end in busy_periods]) if busy_periods else "Aucune occupation"
+                busy_table = "\n".join([f'- {start} et {end}' for start, end in busy_periods]) if busy_periods else "Aucune occupation"
                 if busy_periods :
                     st.markdown(f"""
                         **Disponible jusqu'à**: {ip[1]}  
