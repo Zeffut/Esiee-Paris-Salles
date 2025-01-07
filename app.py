@@ -2,49 +2,33 @@ import streamlit as st
 from base64 import b64decode, b64encode
 from time import ctime, sleep, time
 from threading import Thread
-import gzip, requests, json
+import gzip, requests
 from getFreeRoomsFromAde2 import AdeRequest
 
 st.set_page_config(layout="wide")
 
-global freeRooms
-freeRooms = {}
-try:
-    j = requests.get("https://olivier-truong-ade-free-rooms.hf.space/api").text
-    freeRooms = json.loads(j)
-except:
-    pass
-if freeRooms == {}:
-    Ade = AdeRequest()
-    infos = Ade.getRoomsInfos()
-    freeRooms = Ade.getCurrentsFreeRooms()
+Ade = AdeRequest()
+infos = Ade.getRoomsInfos()
+freeRooms = Ade.getCurrentsFreeRooms()
 
 def import_allowed():
-    global freeRooms
     tab = []
     for room in freeRooms:
         tab.append([room, freeRooms[room]["freeUntil"]])
     return tab
 
 def import_response_data():
-    global freeRooms
     tab = []
     for room in freeRooms:
         tab.append([room, freeRooms[room]["capacity"], freeRooms[room]["freeUntil"], freeRooms[room]["busy"]])
     return tab
 
 def reloadData():
-    global freeRooms
     while True:
         try:
             sleep(600)
-            try:
-                j = requests.get("https://olivier-truong-ade-free-rooms.hf.space/api").text
-                freeRooms = json.loads(j)
-            except:
-                Ade = AdeRequest()
-                infos = Ade.getRoomsInfos()
-                freeRooms = Ade.getCurrentsFreeRooms()
+            infos = Ade.getRoomsInfos()
+            freeRooms = Ade.getCurrentsFreeRooms()
             st.session_state['response_data'] = import_response_data() # [numRoom: str, capacity: int, freeUntil: str, busy: tuple]
             st.session_state['allowed'] = import_allowed() # [numRoom: str, freeUtil: str]
             print("[+] Refresh Data From Ade")
@@ -86,6 +70,13 @@ with col1:
             room_name += " 🏫"
         with cols[i % 6].expander(f"{room_name}"):
             st.text(f"Disponible jusqu'à -> {ip[1]}")
+            room_info = next((room for room in st.session_state['response_data'] if room[0] == ip[0]), None)
+            if room_info:
+                st.text(f"Capacité: {room_info[1]}")
+                if room_info[3]:
+                    st.text("Occupée durant:")
+                    for busy_period in room_info[3]:
+                        st.text(busyUntil(busy_period))
 
 with col2:
     st.header("Explication")
