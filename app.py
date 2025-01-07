@@ -74,7 +74,7 @@ with col1:
             if room_info:
                 st.text(f"Capacité: {room_info[1]}")
                 if room_info[3]:
-                    st.text("Occupée durant:")
+                    st.text("Occupée entre:")
                     for busy_period in room_info[3]:
                         st.text(busyUntil(busy_period))
 
