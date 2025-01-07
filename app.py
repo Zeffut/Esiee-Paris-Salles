@@ -93,7 +93,7 @@ with col1:
                     st.markdown(f"""
                         **Disponible jusqu'à**: {ip[1]}  
                         **Capacité**: {room_info[1]}  
-                        **Occupée entre**:  
+                        **Occupée entre**:  \n
                         {busy_table}
                     """)
                 else:
