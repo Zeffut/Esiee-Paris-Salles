@@ -67,7 +67,7 @@ def responsesFrom(ip):
     for resp in st.session_state['response_data']:
         if resp[0] == ip:
             responses += str(ip) + "    capacité: " + str(resp[1]) + "    disponible jusqu'à: " + str(resp[2])
-            if resp[3] != []:
+            if resp[3] != [] and resp[2] != "demain":
                 responses  += "\noccupée entre:\n" + str("".join(busyUntil(x) for x in resp[3])) + "\r\n\r\n"
     return responses
 
@@ -87,14 +87,20 @@ with col1:
         with cols[i % 6].expander(f"{room_name}"):
             room_info = next((room for room in st.session_state['response_data'] if room[0] == ip[0]), None)
             if room_info:
-                busy_periods = [busyUntil(x) for x in room_info[3]] if room_info[3] else [["Aucune occupation", ""]]
-                busy_table = "\n".join([f'- {start} à {end}' for start, end in busy_periods])
-                st.markdown(f"""
-                    **Disponible jusqu'à**: {ip[1]}  
-                    **Capacité**: {room_info[1]}  
-                    **Occupée entre**:  
-                    {busy_table}
-                """)
+                busy_periods = [busyUntil(x) for x in room_info[3]] if room_info[3] and ip[1] != "demain" else []
+                busy_table = "\n".join([f'- {start} à {end}' for start, end in busy_periods]) if busy_periods else "Aucune occupation"
+                if busy_periods :
+                    st.markdown(f"""
+                        **Disponible jusqu'à**: {ip[1]}  
+                        **Capacité**: {room_info[1]}  
+                        **Occupée entre**:  
+                        {busy_table}
+                    """)
+                else :
+                    st.markdown(f"""
+                        **Disponible jusqu'à**: {ip[1]}  
+                        **Capacité**: {room_info[1]}  
+                    """)
 
 with col2:
     st.header("Explication")
