@@ -85,22 +85,28 @@ with col1:
     with st.expander("Filtres"):
         board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Craie"])
         room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"])
+        epis_filter = st.selectbox("Épis", ["Tous", "1", "2", "3", "4", "5", "6"])
 
     def filter_rooms(room):
         room_name, free_until = room
         room_info = next((r for r in st.session_state['response_data'] if r[0] == room_name), None)
         if not room_info:
             return False
-        
+
         # Filtrer par type de tableau
         if board_filter != "Tous" and room_info[4].lower() != board_filter.lower():
             return False
-        
+
         # Filtrer par type de salle
         if room_type_filter == "Amphithéatre" and room_name not in ["0110", "0210", "0160", "0260"]:
             return False
         if room_type_filter == "Salle normale" and room_name in ["0110", "0210", "0160", "0260"]:
             return False
+
+        # Filtrer par épis
+        if epis_filter != "Tous" and room_name[0] != epis_filter:
+            return False
+
         return True
 
     filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower() and filter_rooms(ip)]
