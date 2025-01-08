@@ -407,6 +407,12 @@ class getXHRVideoNSelect03:
             busy = dictRoom[roomNum]["busy"]
             busy.sort()
             dictRoom[roomNum]["busy"] = busy
+            try:
+                boardKinds = {0: "craie", 1: "blanc", 2: "mixte", None: "/"}
+                dictBoard = {'0110': 0, '0160': 0, '0210': 0, '0260': 0, '2108': 1, '2101': 1, '2102': 1, '2103': 1, '2104': 1, '2107': 1, '0112': 1, '0113': 1, '0114': 1, '0115': 1, '1305': 0, '1307': 0, '1401': 0, '1403': 0, '1405': 0, '1407': 0, '2205': 0, '2207': 0, '2209': 0, '3051': 2, '3053': 2, '3107': 1, '3201': 0, '3205': 0, '3305': 0, '0163': 1, '0164': 1, '0165': 1, '1103': 1, '1105': 1, '4401': 0, '4403': 0, '5405': 1, '1309': 0, '1409': 1, '3101': 1, '3103': 2, '3105': 2, '1456': 1, '1051': 0, '1452': 1, '1201+': 1, '1301+': 1, '2001+': 1, '2201+': 1, '3207+': 2, '3307+': 2, '4201+': 0, '4307+': 0}
+                dictRoom[roomNum]["board"] = boardKinds[dictBoard.get(roomNum)]
+            except:
+                pass
             return dictRoom#lst
         return {roomNum: {"capacity": capacity, "busy": -1, "date": "/"}}
     @staticmethod
@@ -618,4 +624,3 @@ class AdeRequest:
         return free
 
 
-### Exemple d'utilisation
