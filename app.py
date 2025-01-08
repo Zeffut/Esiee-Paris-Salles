@@ -93,7 +93,7 @@ with col1:
             return False
         
         # Filtrer par type de tableau
-        if board_filter != "Tous" and room_info[4] != board_filter:
+        if board_filter != "Tous" and room_info[4].lower() != board_filter.lower():
             return False
         
         # Filtrer par type de salle
@@ -101,7 +101,6 @@ with col1:
             return False
         if room_type_filter == "Salle normale" and room_name in ["0110", "0210", "0160", "0260"]:
             return False
-        
         return True
 
     filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower() and filter_rooms(ip)]
