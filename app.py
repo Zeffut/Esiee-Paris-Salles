@@ -97,7 +97,7 @@ with col1:
             return False
         
         # Filtrer par type de salle
-        if room_type_filter == "Amphi" and room_name not in ["0110", "0210", "0160", "0260"]:
+        if room_type_filter == "Amphithéatre" and room_name not in ["0110", "0210", "0160", "0260"]:
             return False
         if room_type_filter == "Salle normale" and room_name in ["0110", "0210", "0160", "0260"]:
             return False
