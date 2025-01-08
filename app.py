@@ -78,7 +78,6 @@ def responsesFrom(ip):
 col1, col2 = st.columns([2, 1], gap="large")
 
 with col1:
-    st.title("Salles Disponible ESIEE Paris")
     search_query = st.text_input("Rechercher une salle", "")
     
     # Ajouter un menu pour les filtres
