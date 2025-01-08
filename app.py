@@ -85,7 +85,7 @@ with col1:
     with st.expander("Filtres"):
         board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Craie"])
         room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"])
-        epis_filter = st.selectbox("Épis", ["Tous", "1", "2", "3", "4", "5", "6", "Couloir principal"])
+        epis_filter = st.selectbox("Épis", ["Tous", "Couloir principal", "1", "2", "3", "4", "5", "6"])
 
     def filter_rooms(room):
         room_name, free_until = room
@@ -105,8 +105,8 @@ with col1:
 
         # Filtrer par épis
         if epis_filter != "Tous":
-            if epis_filter == "Couloir principal" and room_name[0] == "0":
-                return True
+            if epis_filter == "Couloir principal" and room_name[0] != "0":
+                return False
             if epis_filter != "Couloir principal" and room_name[0] != epis_filter:
                 return False
 
