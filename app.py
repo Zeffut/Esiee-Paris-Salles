@@ -81,9 +81,10 @@ with col1:
     st.title("Salles Disponible ESIEE Paris")
     search_query = st.text_input("Rechercher une salle", "")
     
-    # Ajouter des filtres
-    board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Noir", "Interactif"])
-    room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphi", "Salle normale"])
+    # Ajouter un menu pour les filtres
+    with st.expander("Filtres"):
+        board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Noir", "Interactif"])
+        room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphi", "Salle normale"])
 
     def filter_rooms(room):
         room_name, free_until = room
