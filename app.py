@@ -83,8 +83,8 @@ with col1:
     
     # Ajouter un menu pour les filtres
     with st.expander("Filtres"):
-        board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Noir", "Interactif"])
-        room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphi", "Salle normale"])
+        board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Craie"])
+        room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"])
 
     def filter_rooms(room):
         room_name, free_until = room
