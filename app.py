@@ -75,7 +75,7 @@ def responsesFrom(ip):
                 responses  += "\noccupée entre:\n" + str("".join(busyUntil(x) for x in resp[3])) + "\r\n\r\n"
     return responses
 
-col1, col2 = st.columns([2, 1], gap="large")
+col1, col2 = st.columns([1, 2], gap="large")
 
 with col1:
     search_query = st.text_input("Rechercher une salle", "")
