@@ -111,32 +111,35 @@ with col1:
         return True
 
     filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower() and filter_rooms(ip)]
-    
-    for ip in filtered_rooms:
-        room_name = ip[0]
-        if room_name in ["0110", "0210", "0160", "0260"]:
-            room_name += " 🏛️"
-        else:
-            room_name += " 🏫"
-        with st.expander(f"{room_name}"):
-            room_info = next((room for room in st.session_state['response_data'] if room[0] == ip[0]), None)
-            if room_info:
-                busy_periods = [busyUntil(x) for x in room_info[3]] if room_info[3] and ip[1] != "demain" else []
-                busy_table = "\n ".join([f' - {start} à {end}' for start, end in busy_periods]) if busy_periods else "Aucune occupation"
-                if busy_periods:
-                    st.markdown(f"""
-                        **Disponible jusqu'à**: {ip[1]}  
-                        **Capacité**: {room_info[1]}  
-                        **Tableau**: {room_info[4]}
-                        \n**Occupée entre**:  
-                        \n{busy_table}
-                    """)
-                else:
-                    st.markdown(f"""
-                        **Disponible jusqu'à**: {ip[1]}  
-                        **Capacité**: {room_info[1]}  
-                        **Tableau**: {room_info[4]}
-                    """)
+
+    if not filtered_rooms:
+        st.write("Aucune salle libre disponible répondant aux filtres sélectionnés")
+    else:
+        for ip in filtered_rooms:
+            room_name = ip[0]
+            if room_name in ["0110", "0210", "0160", "0260"]:
+                room_name += " 🏛️"
+            else:
+                room_name += " 🏫"
+            with st.expander(f"{room_name}"):
+                room_info = next((room for room in st.session_state['response_data'] if room[0] == ip[0]), None)
+                if room_info:
+                    busy_periods = [busyUntil(x) for x in room_info[3]] if room_info[3] and ip[1] != "demain" else []
+                    busy_table = "\n ".join([f' - {start} à {end}' for start, end in busy_periods]) if busy_periods else "Aucune occupation"
+                    if busy_periods:
+                        st.markdown(f"""
+                            **Disponible jusqu'à**: {ip[1]}  
+                            **Capacité**: {room_info[1]}  
+                            **Tableau**: {room_info[4]}
+                            \n**Occupée entre**:  
+                            \n{busy_table}
+                        """)
+                    else:
+                        st.markdown(f"""
+                            **Disponible jusqu'à**: {ip[1]}  
+                            **Capacité**: {room_info[1]}  
+                            **Tableau**: {room_info[4]}
+                        """)
 
 with col2:
     st.header("Explication")
