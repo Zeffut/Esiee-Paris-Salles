@@ -81,10 +81,9 @@ with col1:
     search_query = st.text_input("Rechercher une salle", "")
     
     # Ajouter un menu pour les filtres
-    with st.expander("Filtres"):
-        board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Craie"])
-        room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"])
-        epis_filter = st.selectbox("Épis", ["Tous", "Couloir principal", "1", "2", "3", "4", "5", "6"])
+    board_filter = st.segmented_control("Type de tableau", ["Tous", "Blanc", "Craie"], default="Tous")
+    room_type_filter = st.segmented_control("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"], default="Toutes")
+    epis_filter = st.segmented_control("Épis", ["Tous", "Rue", "1", "2", "3", "4", "5", "6"], default="Tous")
 
     def filter_rooms(room):
         room_name, free_until = room
