@@ -39,28 +39,23 @@ def import_response_data():
 
 def reloadData():
     global freeRooms
-    while True:
-        try:
-            sleep(600)
-            try:
-                j = requests.get("https://olivier-truong-ade-free-rooms.hf.space/api").text
-                freeRooms = json.loads(j)
-            except:
-                Ade = AdeRequest()
-                infos = Ade.getRoomsInfos()
-                freeRooms = Ade.getCurrentsFreeRooms()
-            st.session_state['response_data'] = import_response_data()
-            st.session_state['allowed'] = import_allowed()
-            print("[+] Refresh Data From Ade")
-        except Exception as e:
-            print("Err. When reload:", e)
+    try:
+        j = requests.get("https://olivier-truong-ade-free-rooms.hf.space/api").text
+        freeRooms = json.loads(j)
+    except:
+        Ade = AdeRequest()
+        infos = Ade.getRoomsInfos()
+        freeRooms = Ade.getCurrentsFreeRooms()
+    st.session_state['response_data'] = import_response_data()
+    st.session_state['allowed'] = import_allowed()
+    print("[+] Refresh Data From Ade")
 
 if 'response_data' not in st.session_state:
     st.session_state['response_data'] = import_response_data()
 if 'allowed' not in st.session_state:
     st.session_state['allowed'] = import_allowed()
 
-Thread(target=reloadData).start()
+reloadData()
 
 def busyUntil(tab):
     ts, te = tab
