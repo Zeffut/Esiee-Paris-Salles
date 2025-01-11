@@ -70,91 +70,121 @@ def responsesFrom(ip):
                 responses  += "\noccupée entre:\n" + str("".join(busyUntil(x) for x in resp[3])) + "\r\n\r\n"
     return responses
 
-col1, col2 = st.columns([1, 2], gap="large")
+current_hour = time.localtime().tm_hour
 
-with col1:
-    st.header("Salles libres à ESIEE Paris")
-    
-    search_query = st.text_input("Rechercher une salle", "")
-    
-    # Ajouter un menu pour les filtres
-    board_filter = st.segmented_control("Type de tableau", ["Tous", "Blanc", "Craie"], default="Tous")
-    room_type_filter = st.segmented_control("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"], default="Toutes")
-    epis_filter = st.segmented_control("Épis", ["Tous", "Rue", "1", "2", "3", "4", "5", "6"], default="Tous")
+if 23 <= current_hour or current_hour < 6:
+    col1, col2 = st.columns([1, 2], gap="large")
 
-    def filter_rooms(room):
-        room_name, free_until = room
-        room_info = next((r for r in st.session_state['response_data'] if r[0] == room_name), None)
-        if not room_info:
-            return False
+    with col1:
+        st.header("Salles libres à ESIEE Paris")
+        st.write("L'établissement est fermé entre 23:00 et 6:00. Veuillez revenir pendant les heures d'ouverture.")
 
-        # Filtrer par type de tableau
-        if board_filter != "Tous" and room_info[4].lower() != board_filter.lower():
-            return False
+    with col2:
+        st.header("Explication")
+        st.markdown("""
+        Les salles présentes sont les salles libres. Le menu déroulant des salles indique jusqu'à quand elles sont disponibles.
+        Les salles avec l'émoji 🏛️ sont des amphithéâtres, tandis que les autres salles avec l'émoji 🏫 sont des salles normales.
+        """)
 
-        # Filtrer par type de salle
-        if room_type_filter == "Amphithéatre" and room_name not in ["0110", "0210", "0160", "0260"]:
-            return False
-        if room_type_filter == "Salle normale" and room_name in ["0110", "0210", "0160", "0260"]:
-            return False
+        st.header("Informations")
+        st.markdown("""
+        Vous trouverez ici, la liste des salles disponibles ou aucun cours n'a lieu en ce moment même.
+        
+        Le fonctionnement est simple: ci-dessous une liste vous indique le numéro de la salle et l'heure jusqu'à
+        laquelle elle est disponible (avant le cours suivant). En cliquant sur un élément de la liste,
+        il est possible d'avoir des infos supplémentaires comme la capacité théorique de la salle et la liste
+        des heures auxquelles la salle se voit occupée. Je vous conseille de regarder ces infos juste pour vous
+        assurer que l'estimation de disponibilité est correcte et à le reporter à olivier.truong@edu.esiee.fr
+        si vous constatez que la corrélation est mauvaise. (avec des screenshots svp <3).
 
-        # Filtrer par épis
-        if epis_filter != "Tous":
-            if epis_filter == "Rue" and room_name[0] != "0":
+        Made with ❤️ by Zeffut and Glz_SQL
+        """)
+else:
+    col1, col2 = st.columns([1, 2], gap="large")
+
+    with col1:
+        st.header("Salles libres à ESIEE Paris")
+        
+        search_query = st.text_input("Rechercher une salle", "")
+        
+        # Ajouter un menu pour les filtres
+        board_filter = st.segmented_control("Type de tableau", ["Tous", "Blanc", "Craie"], default="Tous")
+        room_type_filter = st.segmented_control("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"], default="Toutes")
+        epis_filter = st.segmented_control("Épis", ["Tous", "Rue", "1", "2", "3", "4", "5", "6"], default="Tous")
+
+        def filter_rooms(room):
+            room_name, free_until = room
+            room_info = next((r for r in st.session_state['response_data'] if r[0] == room_name), None)
+            if not room_info:
                 return False
-            if epis_filter != "Rue" and room_name[0] != epis_filter:
+
+            # Filtrer par type de tableau
+            if board_filter != "Tous" and room_info[4].lower() != board_filter.lower():
                 return False
 
-        return True
+            # Filtrer par type de salle
+            if room_type_filter == "Amphithéatre" and room_name not in ["0110", "0210", "0160", "0260"]:
+                return False
+            if room_type_filter == "Salle normale" and room_name in ["0110", "0210", "0160", "0260"]:
+                return False
 
-    filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower() and filter_rooms(ip)]
+            # Filtrer par épis
+            if epis_filter != "Tous":
+                if epis_filter == "Rue" and room_name[0] != "0":
+                    return False
+                if epis_filter != "Rue" and room_name[0] != epis_filter:
+                    return False
 
-    if not filtered_rooms:
-        st.write("Aucune salle libre disponible répondant aux filtres sélectionnés")
-    else:
-        for ip in filtered_rooms:
-            room_name = ip[0]
-            if room_name in ["0110", "0210", "0160", "0260"]:
-                room_name += " 🏛️"
-            else:
-                room_name += " 🏫"
-            with st.expander(f"{room_name}"):
-                room_info = next((room for room in st.session_state['response_data'] if room[0] == ip[0]), None)
-                if room_info:
-                    busy_periods = [busyUntil(x) for x in room_info[3]] if room_info[3] and ip[1] != "demain" else []
-                    busy_table = "\n ".join([f' - {start} à {end}' for start, end in busy_periods]) if busy_periods else "Aucune occupation"
-                    if busy_periods:
-                        st.markdown(f"""
-                            **Disponible jusqu'à**: {ip[1]}  
-                            **Capacité**: {room_info[1]}  
-                            **Tableau**: {room_info[4]}
-                            \n**Occupée entre**:  
-                            \n{busy_table}
-                        """)
-                    else:
-                        st.markdown(f"""
-                            **Disponible jusqu'à**: {ip[1]}  
-                            **Capacité**: {room_info[1]}  
-                            **Tableau**: {room_info[4]}
-                        """)
+            return True
 
-with col2:
-    st.header("Explication")
-    st.markdown("""
-    Les salles présentes sont les salles libres. Le menu déroulant des salles indique jusqu'à quand elles sont disponibles.
-    Les salles avec l'émoji 🏛️ sont des amphithéâtres, tandis que les autres salles avec l'émoji 🏫 sont des salles normales.
-    """)
+        filtered_rooms = [ip for ip in st.session_state['allowed'] if search_query.lower() in ip[0].lower() and filter_rooms(ip)]
 
-    st.header("Informations")
-    st.markdown("""
-    Vous trouverez ici, la liste des salles disponibles ou aucun cours n'a lieu en ce moment même.
-    
-    Le fonctionnement est simple: ci-dessous une liste vous indique le numéro de la salle et l'heure jusqu'à
-    laquelle elle est disponible (avant le cours suivant). En cliquant sur un élément de la liste,
-    il est possible d'avoir des infos supplémentaires comme la capacité théorique de la salle et la liste
-    des heures auxquelles la salle se voit occupée. Je vous conseille de regarder ces infos juste pour vous
-    assurer que l'estimation de disponibilité est correcte et à le reporter à olivier.truong@edu.esiee.fr
-    si vous constatez que la corrélation est mauvaise. (avec des screenshots svp <3).
+        if not filtered_rooms:
+            st.write("Aucune salle libre disponible répondant aux filtres sélectionnés")
+        else:
+            for ip in filtered_rooms:
+                room_name = ip[0]
+                if room_name in ["0110", "0210", "0160", "0260"]:
+                    room_name += " 🏛️"
+                else:
+                    room_name += " 🏫"
+                with st.expander(f"{room_name}"):
+                    room_info = next((room for room in st.session_state['response_data'] if room[0] == ip[0]), None)
+                    if room_info:
+                        busy_periods = [busyUntil(x) for x in room_info[3]] if room_info[3] and ip[1] != "demain" else []
+                        busy_table = "\n ".join([f' - {start} à {end}' for start, end in busy_periods]) if busy_periods else "Aucune occupation"
+                        if busy_periods:
+                            st.markdown(f"""
+                                **Disponible jusqu'à**: {ip[1]}  
+                                **Capacité**: {room_info[1]}  
+                                **Tableau**: {room_info[4]}
+                                \n**Occupée entre**:  
+                                \n{busy_table}
+                            """)
+                        else:
+                            st.markdown(f"""
+                                **Disponible jusqu'à**: {ip[1]}  
+                                **Capacité**: {room_info[1]}  
+                                **Tableau**: {room_info[4]}
+                            """)
 
-    Made with ❤️ by Zeffut and Glz_SQL
-    """)
+    with col2:
+        st.header("Explication")
+        st.markdown("""
+        Les salles présentes sont les salles libres. Le menu déroulant des salles indique jusqu'à quand elles sont disponibles.
+        Les salles avec l'émoji 🏛️ sont des amphithéâtres, tandis que les autres salles avec l'émoji 🏫 sont des salles normales.
+        """)
+
+        st.header("Informations")
+        st.markdown("""
+        Vous trouverez ici, la liste des salles disponibles ou aucun cours n'a lieu en ce moment même.
+        
+        Le fonctionnement est simple: ci-dessous une liste vous indique le numéro de la salle et l'heure jusqu'à
+        laquelle elle est disponible (avant le cours suivant). En cliquant sur un élément de la liste,
+        il est possible d'avoir des infos supplémentaires comme la capacité théorique de la salle et la liste
+        des heures auxquelles la salle se voit occupée. Je vous conseille de regarder ces infos juste pour vous
+        assurer que l'estimation de disponibilité est correcte et à le reporter à olivier.truong@edu.esiee.fr
+        si vous constatez que la corrélation est mauvaise. (avec des screenshots svp <3).
+
+        Made with ❤️ by Zeffut and Glz_SQL
+        """)
