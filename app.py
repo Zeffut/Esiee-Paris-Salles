@@ -100,9 +100,9 @@ with col1:
 
         # Filtrer par épis
         if epis_filter != "Tous":
-            if epis_filter == "Couloir principal" and room_name[0] != "0":
+            if epis_filter == "Rue" and room_name[0] != "0":
                 return False
-            if epis_filter != "Couloir principal" and room_name[0] != epis_filter:
+            if epis_filter != "Rue" and room_name[0] != epis_filter:
                 return False
 
         return True
