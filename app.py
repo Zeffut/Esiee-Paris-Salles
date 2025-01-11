@@ -97,6 +97,11 @@ if 22 <= current_hour or current_hour < 5:
 
         Made with ❤️ by Zeffut and Glz_SQL
         """)
+
+        st.header("Visite Virtuelle")
+        st.markdown("""
+        <iframe scrolling="no" src="/visite-virtuelle/index.html?wmode=transparent" style="border-style: none; border-width: 0; margin: 20px 0; padding: 0; height: 600px; width: 100%;"></iframe>
+        """, unsafe_allow_html=True)
 else:
     col1, col2 = st.columns([1, 2], gap="large")
 
@@ -186,3 +191,8 @@ else:
 
         Made with ❤️ by Zeffut and Glz_SQL
         """)
+
+        st.header("Visite Virtuelle")
+        st.markdown("""
+        <iframe scrolling="no" src="https://www.esiee.fr/visite-virtuelle/index.html?wmode=transparent" style="border-style: none; border-width: 0; margin: 20px 0; padding: 0; height: 600px; width: 100%;"></iframe>
+        """, unsafe_allow_html=True)
