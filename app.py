@@ -1,5 +1,5 @@
 import streamlit as st
-import gzip, requests, json
+import requests, json
 from getFreeRoomsFromAde2 import AdeRequest
 from datetime import datetime
 
