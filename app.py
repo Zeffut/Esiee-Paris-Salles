@@ -1,7 +1,4 @@
 import streamlit as st
-from base64 import b64decode, b64encode
-from time import ctime, sleep
-from threading import Thread
 import gzip, requests, json
 from getFreeRoomsFromAde2 import AdeRequest
 from datetime import datetime
