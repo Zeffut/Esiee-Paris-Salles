@@ -1,9 +1,10 @@
 import streamlit as st
 from base64 import b64decode, b64encode
-from time import ctime, sleep, time
+from time import ctime, sleep
 from threading import Thread
 import gzip, requests, json
 from getFreeRoomsFromAde2 import AdeRequest
+from datetime import datetime
 
 st.set_page_config(layout="wide")
 
@@ -70,9 +71,9 @@ def responsesFrom(ip):
                 responses  += "\noccupée entre:\n" + str("".join(busyUntil(x) for x in resp[3])) + "\r\n\r\n"
     return responses
 
-current_hour = time.localtime().tm_hour
+current_hour = datetime.now().hour
 
-if 10 <= current_hour or current_hour < 6:
+if 23 <= current_hour or current_hour < 6:
     col1, col2 = st.columns([1, 2], gap="large")
 
     with col1:
