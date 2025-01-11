@@ -73,7 +73,7 @@ def responsesFrom(ip):
 
 current_hour = datetime.now().hour
 
-if 10 <= current_hour or current_hour < 6:
+if 23 <= current_hour or current_hour < 6:
     col1, col2 = st.columns([1, 2], gap="large")
 
     with col1:
