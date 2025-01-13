@@ -120,7 +120,6 @@ current_hour = datetime.now().hour
 
 token = get_token()
 pseudo = get_pseudo(token)
-print(f"Token: {token}, Pseudo: {pseudo}")
 
 if 22 <= current_hour or current_hour < 5:
     col1, col2 = st.columns([1, 2], gap="large")
