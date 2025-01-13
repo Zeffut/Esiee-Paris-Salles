@@ -2,8 +2,56 @@ import streamlit as st
 import requests, json
 from getFreeRoomsFromAde2 import AdeRequest
 from datetime import datetime
+from streamlit_cookies_controller import CookieController
+import uuid
 
 st.set_page_config(layout="wide")
+controller = CookieController()
+
+CONFIG_FILE = 'config.json'
+
+def load_config():
+    with open(CONFIG_FILE, 'r') as f:
+        return json.load(f)
+
+def save_config(config):
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=4)
+
+def gen_pseudo():
+    return f"user_{uuid.uuid4().hex[:8]}"
+
+def get_token():
+    token = controller.get('token')
+    if token:
+        config = load_config()
+        user = next((user for user in config['users'] if user['token'] == token), None)
+        if user:
+            return token
+
+    pseudo = gen_pseudo()
+    config = load_config()
+    user = next((user for user in config['users'] if user['pseudo'] == pseudo), None)
+    if user:
+        token = user['token']
+    else:
+        token = gen_token()
+        config['users'].append({'pseudo': pseudo, 'token': token})
+        save_config(config)
+    
+    controller.set('token', token)
+    return token
+
+def gen_token():
+    token = str(uuid.uuid4())
+    return token
+
+def get_pseudo(token):
+    config = load_config()
+    user = next((user for user in config['users'] if user['token'] == token), None)
+    if user:
+        return user['pseudo']
+    return None
 
 global freeRooms
 freeRooms = {}
@@ -69,6 +117,10 @@ def responsesFrom(ip):
     return responses
 
 current_hour = datetime.now().hour
+
+token = get_token()
+pseudo = get_pseudo(token)
+print(f"Token: {token}, Pseudo: {pseudo}")
 
 if 22 <= current_hour or current_hour < 5:
     col1, col2 = st.columns([1, 2], gap="large")
