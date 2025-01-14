@@ -7,7 +7,6 @@ controller = CookieController()
 
 API_URL = API_URL = os.getenv('DB_URL')
 
-
 def load_config():
     try:
         response = requests.get(API_URL)
