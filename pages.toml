@@ -1,0 +1,9 @@
+[[pages]]
+path = "1_Salles_libres.py"
+name = "Salles Libres"
+icon = "🏫"
+
+[[pages]]
+path = "2_Mon_Profil.py"
+name = "Mon Profil"
+icon = "👤"
