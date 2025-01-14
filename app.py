@@ -8,21 +8,23 @@ import uuid
 st.set_page_config(layout="wide")
 controller = CookieController()
 
-CONFIG_FILE = 'config.json'
+API_URL = ''
 
 def load_config():
     try:
-        with open(CONFIG_FILE, 'r') as f:
-            return json.load(f)
+        response = requests.get(API_URL)
+        if response.status_code == 200:
+            return response.json()
+        return {}
     except:
         return {}
 
 def save_config(config):
     try:
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=4)
+        response = requests.post(API_URL, json=config)
+        return response.status_code == 200
     except:
-        pass
+        return False
 
 def gen_pseudo():
     return f"user_{uuid.uuid4().hex[:8]}"
@@ -30,23 +32,30 @@ def gen_pseudo():
 def get_token():
     try:
         token = controller.get('token')
+        print(f"Token from cookies: {token}")  # Debugging line
         if token:
             config = load_config()
-            user = next((user for user in config['users'] if user['token'] == token), None)
-            if user:
-                return token
+            if 'users' in config:
+                user = next((user for user in config['users'] if user['token'] == token), None)
+                if user:
+                    return token
         pseudo = gen_pseudo()
+        print(f"Generated pseudo: {pseudo}")  # Debugging line
         config = load_config()
+        if 'users' not in config:
+            config['users'] = []
         user = next((user for user in config['users'] if user['pseudo'] == pseudo), None)
         if user:
             token = user['token']
         else:
             token = gen_token()
+            print("Generating token...")  # Debugging line
             config['users'].append({'pseudo': pseudo, 'token': token})
             save_config(config)
         controller.set('token', token)
         return token
-    except:
+    except Exception as e:
+        print(f"Error in get_token: {e}")  # Debugging line
         return ""
 
 def gen_token():
@@ -126,10 +135,13 @@ def responsesFrom(ip):
                 responses  += "\noccupée entre:\n" + str("".join(busyUntil(x) for x in resp[3])) + "\r\n\r\n"
     return responses
 
+#Logique de la page
+
 current_hour = datetime.now().hour
 
 token = get_token()
 pseudo = get_pseudo(token)
+print(f"Token: {token}, Pseudo: {pseudo}")  # Debugging line
 
 if 22 <= current_hour or current_hour < 5:
     col1, col2 = st.columns([1, 2], gap="large")
@@ -159,10 +171,8 @@ if 22 <= current_hour or current_hour < 5:
         Made with ❤️ by Zeffut and Glz_SQL
         """)
 
-        st.header("Visite Virtuelle")
-        st.markdown("""
-        <iframe scrolling="no" src="/visite-virtuelle/index.html?wmode=transparent" style="border-style: none; border-width: 0; margin: 20px 0; padding: 0; height: 600px; width: 100%;"></iframe>
-        """, unsafe_allow_html=True)
+        st.header("Informations Utilisateur")
+        st.markdown(f"""Bonjour {pseudo}!""")
 else:
     col1, col2 = st.columns([1, 2], gap="large")
 
@@ -253,7 +263,5 @@ else:
         Made with ❤️ by Zeffut and Glz_SQL
         """)
 
-        st.header("Visite Virtuelle")
-        st.markdown("""
-        <iframe scrolling="no" src="https://www.esiee.fr/visite-virtuelle/index.html?wmode=transparent" style="border-style: none; border-width: 0; margin: 20px 0; padding: 0; height: 600px; width: 100%;"></iframe>
-        """, unsafe_allow_html=True)
+        st.header("Informations Utilisateur")
+        st.markdown(f"""Bonjour {pseudo}!""")
