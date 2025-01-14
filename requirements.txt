@@ -2,3 +2,4 @@ requests
 streamlit
 datetime
 streamlit_cookies_controller
+st-pages
