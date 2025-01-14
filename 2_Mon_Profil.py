@@ -68,6 +68,9 @@ def change_pseudo(new_pseudo):
         token = controller.get('token')
         if token:
             config = load_config()
+            # Vérifier si le nouveau pseudo existe déjà
+            if any(user['pseudo'] == new_pseudo for user in config['users']):
+                return None
             user = next((user for user in config['users'] if user['token'] == token), None)
             if user:
                 user['pseudo'] = new_pseudo
