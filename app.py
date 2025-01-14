@@ -46,6 +46,8 @@ def get_token():
             save_config(config)
         controller.set('token', token)
         return token
+    except:
+        return ""
 
 def gen_token():
     token = str(uuid.uuid4())
@@ -57,6 +59,8 @@ def get_pseudo(token):
         user = next((user for user in config['users'] if user['token'] == token), None)
         if user:
             return user['pseudo']
+        return None
+    except:
         return None
 
 global freeRooms
