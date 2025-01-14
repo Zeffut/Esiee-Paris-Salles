@@ -4,11 +4,12 @@ from getFreeRoomsFromAde2 import AdeRequest
 from datetime import datetime
 from streamlit_cookies_controller import CookieController
 import uuid
+import os
 
 st.set_page_config(layout="wide")
 controller = CookieController()
 
-API_URL = ''
+API_URL = os.getenv('DB_URL')
 
 def load_config():
     try:
