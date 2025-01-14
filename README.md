@@ -43,10 +43,6 @@ Les contributions sont les bienvenues ! Veuillez soumettre une pull request ou o
 - **Zeffut**
 - **Glz_SQL**
 
-## Licence
-
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
-
 ## Remerciements
 
 Merci à tous ceux qui ont contribué à ce projet. Made with ❤️ by Zeffut and Glz_SQL.
