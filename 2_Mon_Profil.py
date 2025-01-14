@@ -33,30 +33,24 @@ def gen_token():
 def get_token():
     try:
         token = controller.get('token')
-        print(f"Token from cookies: {token}")  # Debugging line
         if token:
             config = load_config()
             if 'users' in config:
                 user = next((user for user in config['users'] if user['token'] == token), None)
                 if user:
                     return token
-        pseudo = gen_pseudo()
-        print(f"Generated pseudo: {pseudo}")  # Debugging line
         config = load_config()
         if 'users' not in config:
             config['users'] = []
-        user = next((user for user in config['users'] if user['pseudo'] == pseudo), None)
-        if user:
-            token = user['token']
-        else:
-            token = gen_token()
-            print("Generating token...")  # Debugging line
-            config['users'].append({'pseudo': pseudo, 'token': token})
-            save_config(config)
+        pseudo = gen_pseudo()
+        while any(user['pseudo'] == pseudo for user in config['users']):
+            pseudo = gen_pseudo()
+        token = gen_token()
+        config['users'].append({'pseudo': pseudo, 'token': token})
+        save_config(config)
         controller.set('token', token)
         return token
     except Exception as e:
-        print(f"Error in get_token: {e}")  # Debugging line
         return ""
 
 def get_pseudo(token):
@@ -69,6 +63,40 @@ def get_pseudo(token):
     except:
         return None
 
+def change_pseudo(new_pseudo):
+    try:
+        token = controller.get('token')
+        if token:
+            config = load_config()
+            user = next((user for user in config['users'] if user['token'] == token), None)
+            if user:
+                user['pseudo'] = new_pseudo
+                save_config(config)
+                return new_pseudo
+        return None
+    except Exception as e:
+        return None
+
 token = get_token()
 pseudo = get_pseudo(token)
+
 st.write(f"**Pseudo**: {pseudo}")
+if st.button('Modifier', key="show_input_button"):
+    st.session_state.show_input = not st.session_state.get('show_input', False)
+
+if st.session_state.get('show_input', False):
+    @st.dialog("Changer le pseudo")
+    def change_pseudo_dialog():
+        new_pseudo_input = st.text_input("Nouveau pseudo", key="new_pseudo_input")
+        if st.button('Changer', key="change_pseudo_button"):
+            if new_pseudo_input:
+                new_pseudo = change_pseudo(new_pseudo_input)
+                if new_pseudo:
+                    pseudo = new_pseudo
+                    st.session_state.show_input = False
+                    st.rerun()
+                else:
+                    st.write("Erreur lors du changement de pseudo")
+            else:
+                st.write("Veuillez entrer un pseudo valide")
+    change_pseudo_dialog()
