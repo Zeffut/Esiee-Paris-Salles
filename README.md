@@ -12,21 +12,7 @@ Ce projet est une application Streamlit permettant de visualiser les salles libr
 
 ## Installation
 
-1. Clonez le dépôt :
-    ```bash
-    git clone https://github.com/votre-utilisateur/Esiee-Paris-Salles.git
-    cd Esiee-Paris-Salles
-    ```
-
-2. Installez les dépendances :
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3. Lancez l'application :
-    ```bash
-    streamlit run app.py
-    ```
+L'application est disponible a cet URL: https://esiee-paris.streamlit.app/
 
 ## Utilisation
 
