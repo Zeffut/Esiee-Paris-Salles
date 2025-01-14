@@ -80,26 +80,67 @@ def change_pseudo(new_pseudo):
     except Exception as e:
         return None
 
+def change_token(new_token):
+    try:
+        token = controller.get('token')
+        if token:
+            config = load_config()
+            # Vérifier si le nouveau token existe déjà ou est le même que l'ancien
+            if not any(user['token'] == new_token for user in config['users']) or new_token == token:
+                return None
+            user = next((user for user in config['users'] if user['token'] == token), None)
+            if user:
+                user['token'] = new_token
+                save_config(config)
+                controller.set('token', new_token)
+                return new_token
+        return None
+    except Exception as e:
+        return None
+
 token = get_token()
 pseudo = get_pseudo(token)
 
 st.write(f"**Pseudo**: {pseudo}")
-if st.button('Modifier', key="show_input_button"):
-    st.session_state.show_input = not st.session_state.get('show_input', False)
 
-if st.session_state.get('show_input', False):
+if st.button('Modifier Pseudo', key="show_pseudo_input_button"):
+    st.session_state.show_pseudo_input = not st.session_state.get('show_pseudo_input', False)
+
+if st.session_state.get('show_pseudo_input', False):
     @st.dialog("Changer le pseudo")
     def change_pseudo_dialog():
         new_pseudo_input = st.text_input("Nouveau pseudo", key="new_pseudo_input")
-        if st.button('Changer', key="change_pseudo_button"):
+        if st.button('Changer Pseudo', key="change_pseudo_button"):
             if new_pseudo_input:
                 new_pseudo = change_pseudo(new_pseudo_input)
                 if new_pseudo:
                     pseudo = new_pseudo
-                    st.session_state.show_input = False
+                    st.session_state.show_pseudo_input = False
                     st.rerun()
                 else:
                     st.write("Erreur lors du changement de pseudo")
             else:
                 st.write("Veuillez entrer un pseudo valide")
     change_pseudo_dialog()
+
+st.write(f"**Numéro de compte**: {token}")
+
+if st.button('Modifier Numéro de compte', key="show_token_input_button"):
+    st.session_state.show_token_input = not st.session_state.get('show_token_input', False)
+
+if st.session_state.get('show_token_input', False):
+    @st.dialog("Changer le numéro de compte")
+    def change_token_dialog():
+        new_token_input = st.text_input("Nouveau numéro de compte", key="new_token_input")
+        if st.button('Changer Numéro de compte', key="change_token_button"):
+            if new_token_input:
+                new_token = change_token(new_token_input)
+                if new_token:
+                    token = new_token
+                    st.session_state.show_token_input = False
+                    st.rerun()
+                else:
+                    st.write("Erreur lors du changement de numéro de compte")
+            else:
+                st.write("Veuillez entrer un numéro de compte valide")
+    change_token_dialog()
