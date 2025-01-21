@@ -441,11 +441,8 @@ class getXHRVideoNSelect03:
 
 
 def getTheCurrentWeek():
-    dtn = datetime.now()
-    dtn = datetime(dtn.year, dtn.month, dtn.day, 0, 0, 0, 0)
-    dt1 = datetime(2024, 12, 30, 0, 0, 0, 0)
-    weekN = (dtn - dt1).days // 7
-    normalWeek = (weekN % 52) + 19
+    weekN = datetime.now().isocalendar()[1]
+    normalWeek = weekN + 18
     if normalWeek >= 52:
         normalWeek -= 59
     return normalWeek
