@@ -6,3 +6,4 @@ nav = get_nav_from_toml("pages.toml")
 pg = st.navigation(nav)
 add_page_title(pg)
 pg.run()
+
