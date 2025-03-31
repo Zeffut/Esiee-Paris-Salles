@@ -1,5 +1,7 @@
 import re, requests
 from datetime import datetime, timezone
+import pytz
+
 
 class getJSESSIONID:
 
@@ -356,7 +358,8 @@ class getXHRVideoNSelect03:
     @staticmethod
     def ProcessWhereAreBusy(aaa: str, roomName: str):
         def getTheDayOfWeek():
-            dtn = datetime.now()
+            paris_tz = pytz.timezone('Europe/Paris')
+            dtn = datetime.now(paris_tz)
             dtn = datetime(dtn.year, dtn.month, dtn.day, 0, 0, 0, 0)
             dt1 = datetime(2024, 12, 30, 0, 0, 0, 0)
 
@@ -379,6 +382,7 @@ class getXHRVideoNSelect03:
             cons = 2
             daysTab = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
             dictRoom = {roomNum: {"capacity": capacity, "busy": [], "date": ""}}
+            paris_tz = pytz.timezone('Europe/Paris')
             for i in range(len(t) - 1):
                 e = t[i]
                 if (174 <= e <= 178) and e != t[i+1] < 140:
@@ -386,7 +390,7 @@ class getXHRVideoNSelect03:
                     indDay = co[1] // 176
                     
                     if indDay == getTheDayOfWeek():
-                        dictRoom[roomNum]["date"] = daysTab[indDay] + datetime.now().strftime(" %d/%m/%Y")
+                        dictRoom[roomNum]["date"] = daysTab[indDay] + datetime.now(paris_tz).strftime(" %d/%m/%Y")
                         dateStart = datetime.fromtimestamp(((co[0] / 12.75 + 7.5) + 0.02) * 3600, timezone.utc).strftime("%Hh%M")[:-1] + "0"
                         dateEnd = datetime.fromtimestamp(((co[0] / 12.75 + 7.5 + co[3] / 12.75)) * 3600, timezone.utc).strftime("%Hh%M")[:-1] + "0"
                         dateStart = dateStart.replace("h20", "h30")
@@ -397,7 +401,8 @@ class getXHRVideoNSelect03:
                         if "50" in dateEnd:
                             h, m = dateEnd.split("h")
                             dateEnd = str(int(h) + 1) + "h00"
-                        lst.append(daysTab[indDay] + datetime.now().strftime(" %d/%m/%Y room: ") + roomNum + " (capacity: " + str(capacity) + ") " + dateStart + " -> " + dateEnd)
+                        paris_tz = pytz.timezone('Europe/Paris')
+                        lst.append(daysTab[indDay] + datetime.now(paris_tz).strftime(" %d/%m/%Y room: ") + roomNum + " (capacity: " + str(capacity) + ") " + dateStart + " -> " + dateEnd)
                         hS, mS = dateStart.split("h")
                         hE, mE = dateEnd.split("h")
                         dictRoom[roomNum]["busy"].append([(int(hS), int(mS)), (int(hE), int(mE))])
@@ -441,7 +446,8 @@ class getXHRVideoNSelect03:
 
 
 def getTheCurrentWeek():
-    weekN = datetime.now().isocalendar()[1]
+    paris_tz = pytz.timezone('Europe/Paris')
+    weekN = datetime.now(paris_tz).isocalendar()[1]
     normalWeek = weekN + 18
     if normalWeek >= 52:
         normalWeek -= 59
@@ -455,7 +461,8 @@ class AdeRequest:
         self.dictRooms = None
         self.yWeek = getTheCurrentWeek()
         self.numPeriod = 12
-        dt = datetime.now()
+        paris_tz = pytz.timezone('Europe/Paris')
+        dt = datetime.now(paris_tz)
         if dt.month >= 9:
             self.numPeriod = (dt.year - 2024) + 12
         else:
@@ -598,7 +605,8 @@ class AdeRequest:
         if self.dictRooms == None:
             self.dictRooms = self.getRoomsInfos()
         d = self.dictRooms.copy()
-        dtn = datetime.now()
+        paris_tz = pytz.timezone('Europe/Paris')
+        dtn = datetime.now(paris_tz)
         free = {}
         for (k, v) in d.items():
             busy = v["busy"]
