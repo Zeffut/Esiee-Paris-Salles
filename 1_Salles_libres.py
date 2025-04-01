@@ -58,29 +58,27 @@ def responsesFrom(ip):
                 responses  += "\noccupée entre:\n" + str("".join(busyUntil(x) for x in resp[3])) + "\r\n\r\n"
     return responses
 
-def filter_rooms(room, board_filter, room_type_filter, epis_filter, search_query):
+def filter_rooms(room, combined_filter, search_query):
     room_name, free_until = room
     room_info = next((r for r in st.session_state['response_data'] if r[0] == room_name), None)
     if not room_info:
         return False
-
-    # Filtrer par type de tableau
-    if board_filter != "Tous" and room_info[4].lower() != board_filter.lower():
-        return False
-
-    # Filtrer par type de salle
-    if room_type_filter == "Amphithéatre" and room_name not in ["0110", "0210", "0160", "0260"]:
-        return False
-    if room_type_filter == "Salle normale" and room_name in ["0110", "0210", "0160", "0260"]:
-        return False
-
-    # Filtrer par épis
-    if epis_filter != "Tous":
-        if epis_filter == "Rue" and room_name[0] != "0":
-            return False
-        if epis_filter != "Rue" and room_name[0] != epis_filter:
-            return False
-
+    if combined_filter != "Tous":
+        if combined_filter in ["Blanc", "Craie"]:
+            if room_info[4].lower() != combined_filter.lower():
+                return False
+        elif combined_filter == "Amphithéâtre":
+            if room_name not in ["0110", "0210", "0160", "0260"]:
+                return False
+        elif combined_filter == "Salle normale":
+            if room_name in ["0110", "0210", "0160", "0260"]:
+                return False
+        elif combined_filter == "Rue":
+            if room_name[0] != "0":
+                return False
+        elif combined_filter in ["1", "2", "3", "4", "5", "6"]:
+            if room_name[0] != combined_filter:
+                return False
     return search_query.lower() in room_name.lower()
 
 current_hour = datetime.now().hour
@@ -92,10 +90,8 @@ with col1:
         st.write("L'établissement est fermé entre 23:00 et 6:00. Veuillez revenir pendant les heures d'ouverture.")
     else:
         search_query = st.text_input("Rechercher une salle", "")
-        board_filter = st.segmented_control("Type de tableau", ["Tous", "Blanc", "Craie"], default="Tous")
-        room_type_filter = st.segmented_control("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"], default="Toutes")
-        epis_filter = st.segmented_control("Épis", ["Tous", "Rue", "1", "2", "3", "4", "5", "6"], default="Tous")
-    filtered_rooms = [ip for ip in st.session_state['allowed'] if filter_rooms(ip, board_filter, room_type_filter, epis_filter, search_query)]
+        combined_filter = st.selectbox("Filtrer par", ["Tous", "Blanc", "Craie", "Amphithéâtre", "Salle normale", "Rue", "1", "2", "3", "4", "5", "6"])
+    filtered_rooms = [ip for ip in st.session_state['allowed'] if filter_rooms(ip, combined_filter, search_query)]
     if not filtered_rooms:
         st.write("Aucune salle libre disponible répondant aux filtres sélectionnés")
     else:
