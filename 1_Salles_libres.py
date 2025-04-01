@@ -63,37 +63,38 @@ def filter_rooms(room, board_filter, room_type_filter, epis_filter, search_query
     room_info = next((r for r in st.session_state['response_data'] if r[0] == room_name), None)
     if not room_info:
         return False
+
     # Filtrer par type de tableau
     if board_filter != "Tous" and room_info[4].lower() != board_filter.lower():
         return False
+
     # Filtrer par type de salle
     if room_type_filter == "Amphithéatre" and room_name not in ["0110", "0210", "0160", "0260"]:
         return False
     if room_type_filter == "Salle normale" and room_name in ["0110", "0210", "0160", "0260"]:
         return False
+
     # Filtrer par épis
     if epis_filter != "Tous":
         if epis_filter == "Rue" and room_name[0] != "0":
             return False
         if epis_filter != "Rue" and room_name[0] != epis_filter:
             return False
+
     return search_query.lower() in room_name.lower()
 
 current_hour = datetime.now().hour
 
 col1, col2 = st.columns([1, 2], gap="large")
 
-with st.sidebar.expander("Filtres", expanded=False):
-    search_query = st.text_input("Rechercher une salle", "")
-    board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Craie"])
-    room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"])
-    epis_filter = st.selectbox("Épis", ["Tous", "Rue", "1", "2", "3", "4", "5", "6"])
-
 with col1:
     if 22 <= current_hour or current_hour < 5:
         st.write("L'établissement est fermé entre 23:00 et 6:00. Veuillez revenir pendant les heures d'ouverture.")
     else:
-        pass
+        search_query = st.text_input("Rechercher une salle", "")
+        board_filter = st.segmented_control("Type de tableau", ["Tous", "Blanc", "Craie"], default="Tous")
+        room_type_filter = st.segmented_control("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"], default="Toutes")
+        epis_filter = st.segmented_control("Épis", ["Tous", "Rue", "1", "2", "3", "4", "5", "6"], default="Tous")
     filtered_rooms = [ip for ip in st.session_state['allowed'] if filter_rooms(ip, board_filter, room_type_filter, epis_filter, search_query)]
     if not filtered_rooms:
         st.write("Aucune salle libre disponible répondant aux filtres sélectionnés")
