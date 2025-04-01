@@ -91,8 +91,8 @@ with col1:
     if 22 <= current_hour or current_hour < 5:
         st.write("L'établissement est fermé entre 23:00 et 6:00. Veuillez revenir pendant les heures d'ouverture.")
     else:
+        search_query = st.text_input("Rechercher une salle", "")
         with st.expander("Filtres"):
-            search_query = st.text_input("Rechercher une salle", "")
             board_filter = st.segmented_control("Type de tableau", ["Tous", "Blanc", "Craie"], default="Tous")
             room_type_filter = st.segmented_control("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"], default="Toutes")
             epis_filter = st.segmented_control("Épis", ["Tous", "Rue", "1", "2", "3", "4", "5", "6"], default="Tous")
