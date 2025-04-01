@@ -83,15 +83,17 @@ current_hour = datetime.now().hour
 
 col1, col2 = st.columns([1, 2], gap="large")
 
+with st.sidebar.expander("Filtres", expanded=False):
+    search_query = st.text_input("Rechercher une salle", "")
+    board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Craie"])
+    room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"])
+    epis_filter = st.selectbox("Épis", ["Tous", "Rue", "1", "2", "3", "4", "5", "6"])
+
 with col1:
     if 22 <= current_hour or current_hour < 5:
         st.write("L'établissement est fermé entre 23:00 et 6:00. Veuillez revenir pendant les heures d'ouverture.")
     else:
-        with st.expander("Filtres"):
-            search_query = st.text_input("Rechercher une salle", "")
-            board_filter = st.selectbox("Type de tableau", ["Tous", "Blanc", "Craie"])
-            room_type_filter = st.selectbox("Type de salle", ["Toutes", "Amphithéatre", "Salle normale"])
-            epis_filter = st.selectbox("Épis", ["Tous", "Rue", "1", "2", "3", "4", "5", "6"])
+        pass
     filtered_rooms = [ip for ip in st.session_state['allowed'] if filter_rooms(ip, board_filter, room_type_filter, epis_filter, search_query)]
     if not filtered_rooms:
         st.write("Aucune salle libre disponible répondant aux filtres sélectionnés")
