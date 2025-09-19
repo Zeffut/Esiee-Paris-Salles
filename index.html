@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Salles ESIEE - Mockup</title>
+
+<link rel="stylesheet" href="styles.css" />
+<script src="script.js"></script>
+</head>
+<body>
+  <!-- Fixed header zone -->
+  <div class="fixed-header">
+    <button class="hamburger" aria-label="Menu">
+      <span class="lines" aria-hidden="true"></span>
+    </button>
+    <h1 id="page-title" class="title-inline">Salles ESIEE</h1>
+  </div>
+
+  <main class="app" role="main" aria-labelledby="page-title">
+    <header class="header" role="banner">
+    </header>
+
+    <div class="title-section">
+      <h1 class="title-main">Salles ESIEE</h1>
+    </div>
+
+    <div class="search-wrap" aria-hidden="false">
+      <label class="search" aria-label="Recherche">
+        <!-- simple svg loupe -->
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 21l-4.35-4.35" stroke="#8f8f8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="10.5" cy="10.5" r="5.5" stroke="#8f8f8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <input type="text" placeholder="Recherche" aria-label="Recherche des salles" />
+      </label>
+      <button class="filter-btn" id="filterBtn" aria-label="Filtrer les salles">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22 3H2L10 12.46V19L14 21V12.46L22 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Message d'erreur API -->
+    <div class="api-error-message" id="apiErrorMessage" style="display: none;">
+      <div class="error-content">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 9V7a1 1 0 0 0-2 0v2a1 1 0 0 0 2 0zm-1 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm1-9C6.48 3 2 7.48 2 13s4.48 10 10 10 10-4.48 10-10S17.52 3 12 3z" fill="currentColor"/>
+        </svg>
+        <div class="error-text">
+          <h3>API non disponible</h3>
+          <p>Contacter l'administrateur</p>
+        </div>
+      </div>
+    </div>
+
+    <section class="grid" aria-live="polite" aria-label="Liste des salles" id="roomsGrid">
+      <!-- Les salles seront chargées dynamiquement via JavaScript -->
+    </section>
+
+  </main>
+
+  <!-- Profile page -->
+  <div class="profile-page" id="profilePage">
+    <div class="profile-header">
+      <button class="profile-back" id="profileBack">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <h1 class="profile-title">Profil</h1>
+    </div>
+
+    <!-- Not logged in state -->
+    <div class="profile-not-logged" id="profileNotLogged">
+      <div class="profile-avatar-placeholder">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="profile-welcome">Connexion requise</h2>
+      <p class="profile-description">Connectez-vous pour accéder à votre profil et synchroniser vos préférences.</p>
+
+      <div class="profile-actions">
+        <button class="profile-btn profile-btn-google" id="loginBtn">
+          Se connecter avec
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+        </button>
+        <button class="profile-btn profile-btn-apple" id="appleLoginBtn">
+          Se connecter avec
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="#fff"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="profile-features">
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 14C19 15.0609 18.5786 16.0783 17.8284 16.8284C17.0783 17.5786 16.0609 18 15 18H6L2 22V4C2 2.93913 2.42143 1.92172 3.17157 1.17157C3.92172 0.421427 4.93913 0 6 0H15C16.0609 0 17.0783 0.421427 17.8284 1.17157C18.5786 1.92172 19 2.93913 19 4V14Z" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <h3>Salles favorites</h3>
+            <p>Marquez vos salles préférées</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 1V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 21V23" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.22 4.22L5.64 5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18.36 18.36L19.78 19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M1 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M21 12H23" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.22 19.78L5.64 18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18.36 5.64L19.78 4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <h3>Préférences</h3>
+            <p>Personnalisez votre expérience</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2"/>
+              <path d="M16.24 7.76001L14.12 14.12L7.76001 16.24L9.88001 9.88001L16.24 7.76001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <h3>Historique</h3>
+            <p>Consultez vos recherches récentes</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logged in state (hidden by default) -->
+    <div class="profile-logged" id="profileLogged" style="display: none;">
+      <div class="profile-user-info">
+        <div class="profile-avatar">
+          <img src="https://via.placeholder.com/80x80/4A4A4A/FFFFFF?text=JD" alt="Avatar" id="userAvatar">
+        </div>
+        <div class="profile-user-details">
+          <h2 class="profile-username" id="userName">John Doe</h2>
+          <p class="profile-email" id="userEmail">john.doe@esiee.fr</p>
+          <span class="profile-badge">Étudiant</span>
+        </div>
+      </div>
+
+      <div class="profile-stats">
+        <div class="stat-item">
+          <span class="stat-number">42</span>
+          <span class="stat-label">Salles visitées</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">8</span>
+          <span class="stat-label">Favoris</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">156</span>
+          <span class="stat-label">Recherches</span>
+        </div>
+      </div>
+
+      <div class="profile-menu">
+        <div class="profile-menu-item">
+          <div class="menu-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20.84 4.61A5.5 5.5 0 0 0 16.5 2.5C14.76 2.5 13.5 3.5 12 5.5C10.5 3.5 9.24 2.5 7.5 2.5A5.5 5.5 0 0 0 3.16 4.61C1.54 6.24 1.54 8.9 3.16 10.52L11.29 18.65C11.68 19.04 12.31 19.04 12.7 18.65L20.83 10.52C22.45 8.9 22.45 6.24 20.84 4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="menu-item-content">
+            <span class="menu-item-title">Mes favoris</span>
+            <span class="menu-item-subtitle">Gérer les salles favorites</span>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div class="profile-menu-item">
+          <div class="menu-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+              <path d="M19.4 15A1.65 1.65 0 0 0 21 13.09A1.65 1.65 0 0 0 19.4 15" stroke="currentColor" stroke-width="2"/>
+              <path d="M4.6 15A1.65 1.65 0 0 0 3 13.09A1.65 1.65 0 0 0 4.6 15" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="menu-item-content">
+            <span class="menu-item-title">Paramètres</span>
+            <span class="menu-item-subtitle">Notifications et préférences</span>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div class="profile-menu-item">
+          <div class="menu-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9L16 10L9 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="menu-item-content">
+            <span class="menu-item-title">Se déconnecter</span>
+            <span class="menu-item-subtitle">Fermer la session</span>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu overlay -->
+  <div class="menu-overlay" id="menuOverlay">
+    <div class="menu-content">
+      <div class="menu-header">Menu</div>
+      <a href="#" class="menu-item">Salles</a>
+      <a href="#" class="menu-item" id="profileMenuItem">Profil</a>
+    </div>
+  </div>
+
+  <!-- Filter modal -->
+  <div class="filter-modal" id="filterModal">
+    <div class="filter-modal-content">
+      <div class="filter-modal-header">
+        <h2 class="filter-modal-title">Filtrer les salles</h2>
+        <button class="filter-modal-close" id="filterModalClose">×</button>
+      </div>
+      <div class="filter-options">
+        <div class="filter-group">
+          <span class="filter-group-label">Statut</span>
+          <div class="filter-checkboxes">
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-libre">
+              <span class="checkbox-label">Libre</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" id="filter-occupe">
+              <span class="checkbox-label">Occupé</span>
+            </label>
+          </div>
+        </div>
+        <div class="filter-group">
+          <span class="filter-group-label">Type de salle</span>
+          <div class="filter-checkboxes">
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-classique">
+              <span class="checkbox-label">Salle classique</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-amphi">
+              <span class="checkbox-label">Amphithéâtre</span>
+            </label>
+          </div>
+        </div>
+        <div class="filter-group">
+          <span class="filter-group-label">Epis</span>
+          <div class="filter-checkboxes">
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-rue">
+              <span class="checkbox-label">Rue</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-epis1">
+              <span class="checkbox-label">Epis 1</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-epis2">
+              <span class="checkbox-label">Epis 2</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-epis3">
+              <span class="checkbox-label">Epis 3</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-epis4">
+              <span class="checkbox-label">Epis 4</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-epis5">
+              <span class="checkbox-label">Epis 5</span>
+            </label>
+          </div>
+        </div>
+        <div class="filter-group">
+          <span class="filter-group-label">Étage</span>
+          <div class="filter-checkboxes">
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-floor0">
+              <span class="checkbox-label">Sous-sol</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-floor1">
+              <span class="checkbox-label">1er étage</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-floor2">
+              <span class="checkbox-label">2ème étage</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-floor3">
+              <span class="checkbox-label">3ème étage</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-floor4">
+              <span class="checkbox-label">4ème étage</span>
+            </label>
+            <label class="filter-checkbox">
+              <input type="checkbox" checked id="filter-floor5">
+              <span class="checkbox-label">5ème étage</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button class="filter-reset" id="filterReset">Réinitialiser</button>
+        <button class="filter-apply" id="filterApply">Appliquer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Room details modal -->
+  <div class="room-modal" id="roomModal">
+    <div class="room-modal-content">
+      <div class="room-modal-header">
+        <h2 class="room-modal-title" id="roomModalTitle">Salle 0110</h2>
+        <button class="room-modal-close" id="roomModalClose">×</button>
+      </div>
+      <div class="room-info-grid">
+        <div class="room-info-item">
+          <span class="room-info-label">Statut</span>
+          <span class="room-status" id="roomModalStatus">libre</span>
+        </div>
+        <div class="room-info-item">
+          <span class="room-info-label">Nom complet</span>
+          <span class="room-info-value" id="roomModalName">Salle de cours 0110</span>
+        </div>
+        <div class="room-info-item">
+          <span class="room-info-label">Type de tableau</span>
+          <span class="room-info-value" id="roomModalBoard">Tableau blanc interactif</span>
+        </div>
+        <div class="room-info-item">
+          <span class="room-info-label">Nombre de places</span>
+          <span class="room-info-value" id="roomModalCapacity">30 places</span>
+        </div>
+        <div class="room-info-item">
+          <span class="room-info-label">Type de salle</span>
+          <span class="room-info-value" id="roomModalType">Salle classique</span>
+        </div>
+        <div class="room-info-item">
+          <span class="room-info-label">Epis</span>
+          <span class="room-info-value" id="roomModalFloor">Rez-de-chaussée</span>
+        </div>
+      </div>
+
+      <!-- Section emploi du temps -->
+      <div class="room-schedule-section">
+        <div id="roomModalSchedule">
+          <!-- L'emploi du temps sera chargé dynamiquement -->
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
