@@ -171,10 +171,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Configuration de l'API
-  // Forcer HTTP pour éviter les problèmes Mixed Content
-  const API_BASE_URL = window.location.hostname === 'localhost'
-    ? 'http://localhost:3001/api'
-    : 'http://45.145.165.110:3001/api';
+  // Force la production pour Vercel
+  const API_BASE_URL = 'http://45.145.165.110:3001/api';
+
+  console.log('🌐 Environnement:', window.location.hostname);
+  console.log('🔗 API URL forcée:', API_BASE_URL);
 
   // Données par défaut en attendant l'API
   const defaultRoomData = {
