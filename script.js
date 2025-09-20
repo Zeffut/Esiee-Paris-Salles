@@ -171,11 +171,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Configuration de l'API
-  // Force la production pour Vercel
-  const API_BASE_URL = 'http://45.145.165.110:3001/api';
+  // Utiliser HTTPS via tunnel FRP
+  const API_BASE_URL = 'https://45.145.165.110:9443/api';
 
   console.log('🌐 Environnement:', window.location.hostname);
-  console.log('🔗 API URL forcée:', API_BASE_URL);
+  console.log('🔗 API URL HTTPS:', API_BASE_URL);
 
   // Données par défaut en attendant l'API
   const defaultRoomData = {
