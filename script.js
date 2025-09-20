@@ -171,6 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Configuration de l'API
+  // Forcer HTTP pour éviter les problèmes Mixed Content
   const API_BASE_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:3001/api'
     : 'http://45.145.165.110:3001/api';
@@ -551,20 +552,59 @@ document.addEventListener('DOMContentLoaded', function() {
         roomStatuses = data.statuses || defaultRoomStatuses;
         hideAPIError();
         renderRooms();
+        console.log('✅ API connectée:', API_BASE_URL);
       } else {
         throw new Error('API non disponible');
       }
     } catch (error) {
-      console.log('API non disponible');
+      console.log('❌ Erreur API:', error.message);
+      console.log('🔧 URL testée:', API_BASE_URL);
       showAPIError();
-      // Ne pas afficher de données si l'API n'est pas disponible
+      // Utiliser les données par défaut en cas d'erreur
+      roomData = defaultRoomData;
+      roomStatuses = defaultRoomStatuses;
+      renderRooms();
     }
   }
 
   // Afficher le message d'erreur API
   function showAPIError() {
     const errorMessage = document.getElementById('apiErrorMessage');
-    errorMessage.style.display = 'block';
+    if (errorMessage) {
+      errorMessage.style.display = 'block';
+    } else {
+      // Créer un message d'erreur pour Mixed Content
+      showMixedContentWarning();
+    }
+  }
+
+  // Afficher un avertissement sur Mixed Content
+  function showMixedContentWarning() {
+    const warningDiv = document.createElement('div');
+    warningDiv.id = 'mixedContentWarning';
+    warningDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      background: #ff6b35;
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      z-index: 9999;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    `;
+    warningDiv.innerHTML = `
+      <div><strong>⚠️ Connexion API impossible</strong></div>
+      <div style="margin-top: 8px; font-size: 14px;">
+        Pour utiliser l'application, cliquez sur le bouclier 🛡️ dans la barre d'adresse et autorisez le contenu non sécurisé.
+      </div>
+      <button onclick="this.parentElement.remove()" style="margin-top: 10px; background: white; color: #ff6b35; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+        Compris
+      </button>
+    `;
+    document.body.appendChild(warningDiv);
   }
 
   // Masquer le message d'erreur API
