@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Configuration de l'API
   // Utiliser HTTPS via tunnel FRP
-  const API_BASE_URL = 'https://api.zeffut.fr:8443/api';
+  const API_BASE_URL = 'http://72.60.94.131/api';
 
   console.log('🌐 Environnement:', window.location.hostname);
   console.log('🔗 API URL HTTPS:', API_BASE_URL);
