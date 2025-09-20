@@ -68,6 +68,12 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Ignorer les requêtes HTTPS vers des domaines externes (certificats auto-signés)
+  if (url.protocol === 'https:' && url.hostname !== location.hostname) {
+    console.log('[SW] Requête HTTPS externe ignorée:', event.request.url);
+    return;
+  }
+
   // Stratégie différente selon le type de ressource
   if (url.pathname.startsWith('/api/')) {
     // Stratégie Network First pour l'API
