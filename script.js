@@ -171,7 +171,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Configuration de l'API
-  const API_BASE_URL = 'http://45.145.165.110:3001/api';
+  const API_BASE_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3001/api'
+    : 'http://45.145.165.110:3001/api';
 
   // Données par défaut en attendant l'API
   const defaultRoomData = {
