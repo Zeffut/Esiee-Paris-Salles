@@ -1,6 +1,6 @@
 // Service Worker pour Salles ESIEE PWA
-const CACHE_NAME = 'salles-esiee-v1';
-const API_CACHE_NAME = 'salles-esiee-api-v1';
+const CACHE_NAME = 'salles-esiee-v2';
+const API_CACHE_NAME = 'salles-esiee-api-v2';
 
 // Fichiers à mettre en cache (ressources statiques)
 const STATIC_CACHE_URLS = [
@@ -68,14 +68,14 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Ignorer les requêtes HTTPS vers des domaines externes (certificats auto-signés)
-  if (url.protocol === 'https:' && url.hostname !== location.hostname) {
+  // Ignorer les requêtes HTTPS vers des domaines externes sauf api.zeffut.fr
+  if (url.protocol === 'https:' && url.hostname !== location.hostname && url.hostname !== 'api.zeffut.fr') {
     console.log('[SW] Requête HTTPS externe ignorée:', event.request.url);
     return;
   }
 
   // Stratégie différente selon le type de ressource
-  if (url.pathname.startsWith('/api/')) {
+  if (url.pathname.startsWith('/api/') || url.hostname === 'api.zeffut.fr') {
     // Stratégie Network First pour l'API
     event.respondWith(networkFirstStrategy(event.request));
   } else {
