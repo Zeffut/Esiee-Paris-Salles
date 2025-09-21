@@ -1067,30 +1067,6 @@ body.modal-open {
   font-weight: 600;
 }
 
-.profile-stats {
-  display: flex;
-  justify-content: space-around;
-  padding: 20px;
-  background: var(--panel);
-  border-radius: 16px;
-  margin-bottom: 24px;
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-number {
-  display: block;
-  font-size: 24px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: rgba(134, 134, 134);
-}
 
 .profile-menu {
   display: flex;

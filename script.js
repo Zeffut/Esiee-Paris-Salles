@@ -3,12 +3,10 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/sw.js')
       .then(function(registration) {
-        console.log('✓ Service Worker enregistré:', registration.scope);
 
         // Vérifier les mises à jour
         registration.addEventListener('updatefound', function() {
           const newWorker = registration.installing;
-          console.log('📦 Nouvelle version détectée');
 
           newWorker.addEventListener('statechange', function() {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
@@ -19,7 +17,6 @@ if ('serviceWorker' in navigator) {
         });
       })
       .catch(function(error) {
-        console.log('✗ Erreur Service Worker:', error);
       });
   });
 }
@@ -34,7 +31,6 @@ function showUpdateNotification() {
 // Détection du mode installation PWA
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('💾 PWA installable détectée');
   e.preventDefault();
   deferredPrompt = e;
   showInstallButton();
@@ -66,7 +62,6 @@ function showInstallButton() {
       if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        console.log('🎯 Résultat installation:', outcome);
         deferredPrompt = null;
         installBtn.remove();
       }
@@ -85,7 +80,6 @@ function showInstallButton() {
 
 // Détection de l'installation réussie
 window.addEventListener('appinstalled', (evt) => {
-  console.log('🎉 PWA installée avec succès');
   const installBtn = document.getElementById('pwa-install-btn');
   if (installBtn) {
     installBtn.remove();
@@ -174,8 +168,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Utiliser HTTPS via tunnel FRP
   const API_BASE_URL = 'https://api.zeffut.fr/api';
 
-  console.log('🌐 Environnement:', window.location.hostname);
-  console.log('🔗 API URL HTTPS:', API_BASE_URL);
 
   // Données par défaut en attendant l'API
   const defaultRoomData = {
@@ -263,7 +255,6 @@ document.addEventListener('DOMContentLoaded', function() {
         displayTodaySchedule(null);
       }
     } catch (error) {
-      console.log('Erreur lors du chargement de l\'emploi du temps');
       displayTodaySchedule(null);
     }
   }
@@ -527,13 +518,19 @@ document.addEventListener('DOMContentLoaded', function() {
   // Event listener pour le bouton de connexion Google
   document.getElementById('loginBtn').addEventListener('click', function(e) {
     e.preventDefault();
-    showLoginMessage();
+    initiateGoogleSignIn();
   });
 
-  // Event listener pour le bouton de connexion Apple
+  // Event listener pour le bouton de connexion Apple (placeholder)
   document.getElementById('appleLoginBtn').addEventListener('click', function(e) {
     e.preventDefault();
-    showLoginMessage();
+    showErrorMessage('Connexion Apple non disponible pour le moment');
+  });
+
+  // Event listener pour le bouton de déconnexion
+  document.getElementById('logoutBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    signOut();
   });
 
   // Supprimer l'ancienne logique des event listeners (maintenant géré dans renderRooms)
@@ -553,13 +550,10 @@ document.addEventListener('DOMContentLoaded', function() {
         roomStatuses = data.statuses || defaultRoomStatuses;
         hideAPIError();
         renderRooms();
-        console.log('✅ API connectée:', API_BASE_URL);
       } else {
         throw new Error('API non disponible');
       }
     } catch (error) {
-      console.log('❌ Erreur API:', error.message);
-      console.log('🔧 URL testée:', API_BASE_URL);
       showAPIError();
       // Utiliser les données par défaut en cas d'erreur
       roomData = defaultRoomData;
@@ -614,15 +608,280 @@ document.addEventListener('DOMContentLoaded', function() {
     errorMessage.style.display = 'none';
   }
 
-  // Afficher un message pour la connexion
-  function showLoginMessage() {
-    // Créer le modal de message
-    const messageModal = document.createElement('div');
-    messageModal.className = 'message-modal';
-    messageModal.innerHTML = `
+  // Configuration Google OAuth
+  const GOOGLE_CLIENT_ID = '280602510509-ep76jc9na5ae6qbdmcfm7sria30c0acb.apps.googleusercontent.com'; // À remplacer par votre vrai Client ID
+
+  // Variable pour stocker l'utilisateur connecté
+  let currentUser = null;
+
+  // Initialisation de Google Sign-In
+  function initializeGoogleAuth() {
+
+    if (typeof google !== 'undefined' && google.accounts) {
+
+      try {
+        // Initialiser Google Identity Services avec options de persistance
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleCredentialResponse,
+          auto_select: true, // Permet la sélection automatique pour les utilisateurs connus
+          cancel_on_tap_outside: true,
+          use_fedcm_for_prompt: true // Utilise FedCM pour une meilleure UX
+        });
+
+        // Vérifier si l'utilisateur est déjà connecté
+        checkExistingAuth();
+
+      } catch (error) {
+      }
+    } else {
+      // Réessayer après un délai si Google n'est pas encore chargé
+      setTimeout(initializeGoogleAuth, 1000);
+    }
+  }
+
+  // Fonction pour déclencher la connexion Google (appelée par le bouton)
+  function initiateGoogleSignIn() {
+
+    // Vérifier si l'API Google est chargée
+    if (typeof google === 'undefined') {
+      showErrorMessage('API Google non chargée. Veuillez actualiser la page.');
+      return;
+    }
+
+
+    if (google.accounts && google.accounts.id) {
+
+      // Utiliser le prompt pour la connexion
+      google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          // Alternative : utiliser le flow OAuth popup
+          initiateOAuthFlow();
+        }
+      });
+    } else if (google.accounts && google.accounts.oauth2) {
+      initiateOAuthFlow();
+    } else {
+        showErrorMessage('Services Google non disponibles. Vérifiez votre connexion internet.');
+    }
+  }
+
+  // Flow OAuth alternatif si le prompt ne fonctionne pas
+  function initiateOAuthFlow() {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'profile email',
+        callback: (response) => {
+          if (response.access_token) {
+            // Récupérer les infos utilisateur avec le token
+            fetchUserInfoWithToken(response.access_token);
+          }
+        }
+      });
+      client.requestAccessToken();
+    } else {
+      showErrorMessage('OAuth Google non disponible');
+    }
+  }
+
+  // Récupérer les infos utilisateur avec le token OAuth
+  async function fetchUserInfoWithToken(accessToken) {
+    try {
+      const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (response.ok) {
+        const userInfo = await response.json();
+
+        // Simuler la structure du JWT pour compatibilité
+        currentUser = {
+          id: userInfo.id,
+          name: userInfo.name,
+          email: userInfo.email,
+          picture: userInfo.picture,
+          token: accessToken // Ce n'est pas un JWT mais ça fonctionne pour notre usage
+        };
+
+        // Sauvegarder et afficher avec timestamp
+        localStorage.setItem('user', JSON.stringify(currentUser));
+        localStorage.setItem('lastLoginTime', Date.now().toString());
+        showLoggedInState();
+
+      } else {
+        throw new Error('Erreur lors de la récupération du profil');
+      }
+    } catch (error) {
+      showErrorMessage('Erreur lors de la connexion');
+    }
+  }
+
+  // Gérer la réponse de connexion Google
+  function handleCredentialResponse(response) {
+    try {
+      // Décoder le JWT token
+      const userInfo = parseJwt(response.credential);
+
+      // Stocker les informations utilisateur
+      currentUser = {
+        id: userInfo.sub,
+        name: userInfo.name,
+        email: userInfo.email,
+        picture: userInfo.picture,
+        token: response.credential
+      };
+
+      // Sauvegarder dans localStorage avec timestamp
+      localStorage.setItem('user', JSON.stringify(currentUser));
+      localStorage.setItem('lastLoginTime', Date.now().toString());
+
+      // Afficher l'interface utilisateur connecté
+      showLoggedInState();
+
+    } catch (error) {
+      showErrorMessage('Erreur lors de la connexion');
+    }
+  }
+
+  // Fonction pour décoder le JWT (avec gestion d'erreurs)
+  function parseJwt(token) {
+    try {
+      if (!token || typeof token !== 'string' || !token.includes('.')) {
+        throw new Error('Token invalide');
+      }
+
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        throw new Error('Token JWT malformé');
+      }
+
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+
+      // Ajouter du padding si nécessaire
+      const padding = base64.length % 4;
+      const paddedBase64 = padding ? base64 + '='.repeat(4 - padding) : base64;
+
+      // Décoder directement le base64 en UTF-8
+      const binaryString = atob(paddedBase64);
+
+      // Convertir les caractères en UTF-8 proprement
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const jsonPayload = new TextDecoder('utf-8').decode(bytes);
+
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      throw new Error('Token JWT invalide: ' + error.message);
+    }
+  }
+
+  // Vérifier l'authentification existante (version simplifiée)
+  function checkExistingAuth() {
+
+    const storedUser = localStorage.getItem('user');
+    const lastLoginTime = localStorage.getItem('lastLoginTime');
+
+
+    // Si on a un utilisateur stocké, on le garde connecté (session persistante simple)
+    if (storedUser) {
+      try {
+        currentUser = JSON.parse(storedUser);
+
+        // Vérification simple : si on a un utilisateur ET qu'il a été connecté récemment (7 jours max)
+        const now = Date.now();
+        const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000; // 7 jours
+
+        if (lastLoginTime) {
+          const sessionAge = now - parseInt(lastLoginTime);
+
+
+          if (sessionAge < sevenDaysInMs) {
+            showLoggedInState();
+            return;
+          } else {
+            signOut();
+            return;
+          }
+        } else {
+          // Pas de timestamp, on connecte quand même mais on met à jour le timestamp
+          localStorage.setItem('lastLoginTime', Date.now().toString());
+          showLoggedInState();
+          return;
+        }
+
+      } catch (error) {
+        signOut();
+        return;
+      }
+    } else {
+    }
+  }
+
+
+  // Afficher l'état connecté
+  function showLoggedInState() {
+    const profileNotLogged = document.getElementById('profileNotLogged');
+    const profileLogged = document.getElementById('profileLogged');
+
+    // Masquer la page de connexion
+    profileNotLogged.style.display = 'none';
+
+    // Afficher la page connectée
+    profileLogged.style.display = 'block';
+
+    // Mettre à jour les informations utilisateur
+    document.getElementById('userName').textContent = currentUser.name;
+    document.getElementById('userEmail').textContent = currentUser.email;
+    document.getElementById('userAvatar').src = currentUser.picture;
+    document.getElementById('userAvatar').alt = `Avatar de ${currentUser.name}`;
+
+  }
+
+  // Afficher l'état déconnecté
+  function showLoggedOutState() {
+    const profileNotLogged = document.getElementById('profileNotLogged');
+    const profileLogged = document.getElementById('profileLogged');
+
+    // Afficher la page de connexion
+    profileNotLogged.style.display = 'block';
+
+    // Masquer la page connectée
+    profileLogged.style.display = 'none';
+
+  }
+
+  // Fonction de déconnexion
+  function signOut() {
+    // Supprimer les données de localStorage
+    localStorage.removeItem('user');
+    localStorage.removeItem('lastLoginTime');
+    currentUser = null;
+
+    // Déconnecter de Google (si disponible)
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+      google.accounts.id.disableAutoSelect();
+    }
+
+    // Afficher l'état déconnecté
+    showLoggedOutState();
+
+  }
+
+  // Fonction pour afficher les messages d'erreur
+  function showErrorMessage(message) {
+    const errorModal = document.createElement('div');
+    errorModal.className = 'message-modal';
+    errorModal.innerHTML = `
       <div class="message-modal-content">
         <div class="message-header">
-          <h3>Fonctionnalité indisponible</h3>
+          <h3>Erreur</h3>
           <button class="message-close" aria-label="Fermer">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -630,30 +889,27 @@ document.addEventListener('DOMContentLoaded', function() {
           </button>
         </div>
         <div class="message-body">
-          <p>Fonctionnalité indisponible pour le moment</p>
+          <p>${message}</p>
         </div>
       </div>
     `;
 
-    document.body.appendChild(messageModal);
+    document.body.appendChild(errorModal);
     document.body.classList.add('modal-open');
 
-    // Animation d'entrée
-    setTimeout(() => messageModal.classList.add('open'), 10);
+    setTimeout(() => errorModal.classList.add('open'), 10);
 
-    // Event listener pour fermer
-    const closeBtn = messageModal.querySelector('.message-close');
+    const closeBtn = errorModal.querySelector('.message-close');
     closeBtn.addEventListener('click', () => {
-      messageModal.classList.remove('open');
+      errorModal.classList.remove('open');
       setTimeout(() => {
-        document.body.removeChild(messageModal);
+        document.body.removeChild(errorModal);
         document.body.classList.remove('modal-open');
       }, 300);
     });
 
-    // Fermer en cliquant sur l'overlay
-    messageModal.addEventListener('click', (e) => {
-      if (e.target === messageModal) {
+    errorModal.addEventListener('click', (e) => {
+      if (e.target === errorModal) {
         closeBtn.click();
       }
     });
@@ -691,4 +947,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Charger les données au démarrage
   loadRoomsFromAPI();
+
+  // Forcer la mise à jour du service worker pour éviter les problèmes de cache
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      registrations.forEach(registration => {
+        registration.update();
+      });
+    });
+  }
+
+  // Initialiser l'authentification Google
+  initializeGoogleAuth();
 });

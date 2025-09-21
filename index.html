@@ -10,8 +10,6 @@
 <meta name="theme-color" content="#161617">
 <meta name="background-color" content="#161617">
 
-<!-- Autoriser Mixed Content pour l'API -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src 'self' https://api.zeffut.fr https://via.placeholder.com; img-src 'self' data: blob: https://via.placeholder.com; font-src 'self' data:; style-src 'self' 'unsafe-inline';"
 
 <!-- iOS PWA Meta Tags -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -37,6 +35,8 @@
 <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-72x72.png">
 
 <link rel="stylesheet" href="styles.css" />
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="script.js"></script>
 </head>
 <body>
@@ -193,36 +193,8 @@
         </div>
       </div>
 
-      <div class="profile-stats">
-        <div class="stat-item">
-          <span class="stat-number">42</span>
-          <span class="stat-label">Salles visitées</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-number">8</span>
-          <span class="stat-label">Favoris</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-number">156</span>
-          <span class="stat-label">Recherches</span>
-        </div>
-      </div>
 
       <div class="profile-menu">
-        <div class="profile-menu-item">
-          <div class="menu-item-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20.84 4.61A5.5 5.5 0 0 0 16.5 2.5C14.76 2.5 13.5 3.5 12 5.5C10.5 3.5 9.24 2.5 7.5 2.5A5.5 5.5 0 0 0 3.16 4.61C1.54 6.24 1.54 8.9 3.16 10.52L11.29 18.65C11.68 19.04 12.31 19.04 12.7 18.65L20.83 10.52C22.45 8.9 22.45 6.24 20.84 4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="menu-item-content">
-            <span class="menu-item-title">Mes favoris</span>
-            <span class="menu-item-subtitle">Gérer les salles favorites</span>
-          </div>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
 
         <div class="profile-menu-item">
           <div class="menu-item-icon">
@@ -241,10 +213,15 @@
           </svg>
         </div>
 
-        <div class="profile-menu-item">
+        <div class="profile-menu-item" id="logoutBtn">
           <div class="menu-item-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9L16 10L9 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- Porte -->
+              <path d="M3 5v14a2 2 0 0 0 2 2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3 5a2 2 0 0 1 2-2h6v18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <!-- Flèche de sortie -->
+              <path d="M14 12h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18 8l3 4-3 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
           <div class="menu-item-content">

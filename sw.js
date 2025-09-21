@@ -1,6 +1,6 @@
 // Service Worker pour Salles ESIEE PWA
-const CACHE_NAME = 'salles-esiee-v2';
-const API_CACHE_NAME = 'salles-esiee-api-v2';
+const CACHE_NAME = 'salles-esiee-v7';
+const API_CACHE_NAME = 'salles-esiee-api-v7';
 
 // Fichiers à mettre en cache (ressources statiques)
 const STATIC_CACHE_URLS = [
@@ -20,16 +20,13 @@ const API_URLS = [
 
 // Installation du Service Worker
 self.addEventListener('install', event => {
-  console.log('[SW] Installation');
 
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('[SW] Mise en cache des fichiers statiques');
         return cache.addAll(STATIC_CACHE_URLS);
       })
       .then(() => {
-        console.log('[SW] Installation terminée');
         // Force l'activation immédiate
         return self.skipWaiting();
       })
@@ -38,7 +35,6 @@ self.addEventListener('install', event => {
 
 // Activation du Service Worker
 self.addEventListener('activate', event => {
-  console.log('[SW] Activation');
 
   event.waitUntil(
     // Nettoyer les anciens caches
@@ -46,13 +42,11 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
-            console.log('[SW] Suppression du cache obsolète:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     }).then(() => {
-      console.log('[SW] Activation terminée');
       // Prendre le contrôle de tous les clients
       return self.clients.claim();
     })
@@ -68,10 +62,17 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Ignorer les requêtes HTTPS vers des domaines externes sauf api.zeffut.fr
-  if (url.protocol === 'https:' && url.hostname !== location.hostname && url.hostname !== 'api.zeffut.fr') {
-    console.log('[SW] Requête HTTPS externe ignorée:', event.request.url);
+  // Ignorer les requêtes HTTPS vers des domaines externes sauf api.zeffut.fr et services Google
+  if (url.protocol === 'https:' && url.hostname !== location.hostname &&
+      url.hostname !== 'api.zeffut.fr' &&
+      !url.hostname.includes('google') &&
+      !url.hostname.includes('googleapis')) {
     return;
+  }
+
+  // Ne jamais mettre en cache les services Google Auth
+  if (url.hostname.includes('google') || url.hostname.includes('googleapis')) {
+    return fetch(event.request);
   }
 
   // Stratégie différente selon le type de ressource
@@ -90,12 +91,10 @@ async function cacheFirstStrategy(request) {
     // Essayer de récupérer depuis le cache d'abord
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
-      console.log('[SW] Ressource servie depuis le cache:', request.url);
       return cachedResponse;
     }
 
     // Si pas en cache, récupérer depuis le réseau
-    console.log('[SW] Récupération depuis le réseau:', request.url);
     const networkResponse = await fetch(request);
 
     // Mettre en cache la réponse si elle est valide
@@ -106,7 +105,6 @@ async function cacheFirstStrategy(request) {
 
     return networkResponse;
   } catch (error) {
-    console.log('[SW] Erreur cache first:', error);
 
     // Si offline et ressource HTML, servir la page principale
     if (request.headers.get('accept').includes('text/html')) {
@@ -128,7 +126,6 @@ async function cacheFirstStrategy(request) {
 async function networkFirstStrategy(request) {
   try {
     // Essayer le réseau d'abord
-    console.log('[SW] Requête API réseau:', request.url);
     const networkResponse = await fetch(request);
 
     // Mettre en cache si succès
@@ -139,12 +136,10 @@ async function networkFirstStrategy(request) {
 
     return networkResponse;
   } catch (error) {
-    console.log('[SW] Réseau indisponible, essai cache API:', request.url);
 
     // Si réseau indisponible, essayer le cache
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
-      console.log('[SW] Données API servies depuis le cache');
       return cachedResponse;
     }
 
@@ -179,5 +174,4 @@ self.addEventListener('message', event => {
 
 // Notification de mise à jour disponible
 self.addEventListener('updatefound', () => {
-  console.log('[SW] Mise à jour disponible');
 });
