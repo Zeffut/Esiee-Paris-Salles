@@ -546,14 +546,38 @@ document.addEventListener('DOMContentLoaded', function() {
       const response = await fetch(`${API_BASE_URL}/rooms`);
       if (response.ok) {
         const data = await response.json();
-        roomData = data.rooms || defaultRoomData;
-        roomStatuses = data.statuses || defaultRoomStatuses;
+
+        // Nouvelle API dynamique : convertir rooms_list en format attendu par le frontend
+        if (data.rooms_list && Array.isArray(data.rooms_list)) {
+          console.log(`🚀 API dynamique: ${data.rooms_list.length} salles chargées`);
+
+          // Convertir le format de l'API en format attendu par le frontend
+          roomData = {};
+          roomStatuses = {};
+
+          data.rooms_list.forEach(room => {
+            roomData[room.number] = {
+              name: room.name,
+              board: room.board,
+              capacity: room.capacity,
+              type: room.type
+            };
+            roomStatuses[room.number] = room.status;
+          });
+
+        } else {
+          // Ancien format (fallback)
+          roomData = data.rooms || defaultRoomData;
+          roomStatuses = data.statuses || defaultRoomStatuses;
+        }
+
         hideAPIError();
         renderRooms();
       } else {
         throw new Error('API non disponible');
       }
     } catch (error) {
+      console.error('Erreur API:', error);
       showAPIError();
       // Utiliser les données par défaut en cas d'erreur
       roomData = defaultRoomData;
