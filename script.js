@@ -156,16 +156,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function getRoomFloor(roomNumber) {
     if (roomNumber.length === 3) {
-      // Salles à 3 chiffres dans la Rue : 1er chiffre = étage
-      // Ex: 160 = 1er étage, 260 = 2ème étage
+      // Salles à 3 chiffres sont toutes dans la Rue aux étages 1 ou 2
+      // 1XX = 1er étage, 2XX = 2ème étage
       const firstDigit = roomNumber.charAt(0);
       switch(firstDigit) {
-        case '0': return 'Rez-de-chaussée';
         case '1': return '1er étage';
         case '2': return '2ème étage';
-        case '3': return '3ème étage';
-        case '4': return '4ème étage';
-        default: return 'Étage inconnu';
+        default: return '1er étage'; // Valeur par défaut pour les salles 3 chiffres
       }
     } else {
       // Salles à 4 chiffres : 2ème caractère = étage
@@ -430,6 +427,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const episMatch = currentFilters.epis.includes(roomEpis);
       const floorMatch = currentFilters.floors.includes(roomFloor);
 
+
       // Afficher ou masquer la carte
       if (statusMatch && typeMatch && episMatch && floorMatch) {
         card.style.display = 'flex';
@@ -579,6 +577,7 @@ document.addEventListener('DOMContentLoaded', function() {
               type: room.type
             };
             roomStatuses[room.number] = room.status;
+
           });
 
         } else {
@@ -962,6 +961,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     Object.keys(roomData).forEach(roomNumber => {
       const status = roomStatuses[roomNumber] || 'libre';
+
+
       const card = document.createElement('div');
       card.className = 'card';
       card.setAttribute('data-status', status);
