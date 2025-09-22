@@ -135,32 +135,59 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Fonctions pour extraire l'Epis et l'étage depuis le numéro de salle
   function getRoomEpis(roomNumber) {
-    const firstDigit = roomNumber.charAt(0);
-    switch(firstDigit) {
-      case '0': return 'Rue';
-      case '1': return 'Epis 1';
-      case '2': return 'Epis 2';
-      case '3': return 'Epis 3';
-      case '4': return 'Epis 4';
-      case '5': return 'Epis 5';
-      default: return 'Rue'; // Valeur par défaut
+    // Les salles à 3 chiffres sont dans la Rue (comme si elles avaient un 0 devant)
+    // Par exemple: 210 = 0210 (Rue)
+    if (roomNumber.length === 3) {
+      return 'Rue';
+    } else {
+      // Salles à 4 chiffres : utiliser le 1er caractère
+      const firstDigit = roomNumber.charAt(0);
+      switch(firstDigit) {
+        case '0': return 'Rue';
+        case '1': return 'Epis 1';
+        case '2': return 'Epis 2';
+        case '3': return 'Epis 3';
+        case '4': return 'Epis 4';
+        case '5': return 'Epis 5';
+        default: return 'Rue'; // Valeur par défaut
+      }
     }
   }
 
   function getRoomFloor(roomNumber) {
-    const secondDigit = roomNumber.charAt(1);
-    switch(secondDigit) {
-      case '0': return 'Sous-sol';
-      case '1': return '1er étage';
-      case '2': return '2ème étage';
-      case '3': return '3ème étage';
-      case '4': return '4ème étage';
-      case '5': return '5ème étage';
-      case '6': return '6ème étage';
-      case '7': return '7ème étage';
-      case '8': return '8ème étage';
-      case '9': return '9ème étage';
-      default: return 'Étage inconnu';
+    // Les salles à 3 chiffres sont dans la Rue (comme si elles avaient un 0 devant)
+    // Par exemple: 210 = 0210 (Rue - 1er étage)
+    if (roomNumber.length === 3) {
+      const secondDigit = roomNumber.charAt(1);
+      switch(secondDigit) {
+        case '0': return 'Sous-sol';
+        case '1': return '1er étage';
+        case '2': return '2ème étage';
+        case '3': return '3ème étage';
+        case '4': return '4ème étage';
+        case '5': return '5ème étage';
+        case '6': return '6ème étage';
+        case '7': return '7ème étage';
+        case '8': return '8ème étage';
+        case '9': return '9ème étage';
+        default: return 'Étage inconnu';
+      }
+    } else {
+      // Salles à 4 chiffres : utiliser le 2ème caractère
+      const secondDigit = roomNumber.charAt(1);
+      switch(secondDigit) {
+        case '0': return 'Sous-sol';
+        case '1': return '1er étage';
+        case '2': return '2ème étage';
+        case '3': return '3ème étage';
+        case '4': return '4ème étage';
+        case '5': return '5ème étage';
+        case '6': return '6ème étage';
+        case '7': return '7ème étage';
+        case '8': return '8ème étage';
+        case '9': return '9ème étage';
+        default: return 'Étage inconnu';
+      }
     }
   }
 
@@ -205,12 +232,12 @@ document.addEventListener('DOMContentLoaded', function() {
   let roomData = defaultRoomData;
   let roomStatuses = defaultRoomStatuses;
 
-  // État des filtres
+  // État des filtres - Afficher toutes les salles par défaut
   let currentFilters = {
-    status: ['libre'],
+    status: ['libre', 'occupé'],
     type: ['Salle classique', 'Amphithéâtre'],
     epis: ['Rue', 'Epis 1', 'Epis 2', 'Epis 3', 'Epis 4', 'Epis 5'],
-    floors: ['Sous-sol', '1er étage', '2ème étage', '3ème étage', '4ème étage', '5ème étage']
+    floors: ['Sous-sol', '1er étage', '2ème étage', '3ème étage', '4ème étage', '5ème étage', '6ème étage', '7ème étage', '8ème étage', '9ème étage']
   };
 
   // Ouvrir le modal de détails d'une salle
@@ -428,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
       status: ['libre', 'occupé'],
       type: ['Salle classique', 'Amphithéâtre'],
       epis: ['Rue', 'Epis 1', 'Epis 2', 'Epis 3', 'Epis 4', 'Epis 5'],
-      floors: ['Sous-sol', '1er étage', '2ème étage', '3ème étage', '4ème étage', '5ème étage']
+      floors: ['Sous-sol', '1er étage', '2ème étage', '3ème étage', '4ème étage', '5ème étage', '6ème étage', '7ème étage', '8ème étage', '9ème étage']
     };
 
     // Remettre toutes les checkboxes à checked
@@ -472,6 +499,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('filter-floor3').checked) currentFilters.floors.push('3ème étage');
     if (document.getElementById('filter-floor4').checked) currentFilters.floors.push('4ème étage');
     if (document.getElementById('filter-floor5').checked) currentFilters.floors.push('5ème étage');
+    if (document.getElementById('filter-floor6').checked) currentFilters.floors.push('6ème étage');
+    if (document.getElementById('filter-floor7').checked) currentFilters.floors.push('7ème étage');
+    if (document.getElementById('filter-floor8').checked) currentFilters.floors.push('8ème étage');
+    if (document.getElementById('filter-floor9').checked) currentFilters.floors.push('9ème étage');
 
     // Appliquer les filtres et fermer le modal
     filterRooms();
