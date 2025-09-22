@@ -221,9 +221,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // État des filtres - Afficher toutes les salles par défaut
   let currentFilters = {
-    status: ['libre', 'occupé'],
+    status: ['libre'],
     type: ['Salle classique', 'Amphithéâtre'],
-    epis: ['Rue', 'Epis 1', 'Epis 2', 'Epis 3', 'Epis 4', 'Epis 5'],
+    epis: ['Rue', 'Epis 1', 'Epis 2', 'Epis 3', 'Epis 4'],
     floors: ['Rez-de-chaussée', '1er étage', '2ème étage', '3ème étage', '4ème étage']
   };
 
@@ -440,9 +440,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Réinitialiser les filtres
   function resetFilters() {
     currentFilters = {
-      status: ['libre', 'occupé'],
+      status: ['libre'],
       type: ['Salle classique', 'Amphithéâtre'],
-      epis: ['Rue', 'Epis 1', 'Epis 2', 'Epis 3', 'Epis 4', 'Epis 5'],
+      epis: ['Rue', 'Epis 1', 'Epis 2', 'Epis 3', 'Epis 4'],
       floors: ['Rez-de-chaussée', '1er étage', '2ème étage', '3ème étage', '4ème étage']
     };
 
@@ -983,8 +983,33 @@ document.addEventListener('DOMContentLoaded', function() {
     filterRooms();
   }
 
+  // Fonction pour synchroniser les checkboxes avec les filtres par défaut
+  function initializeFilters() {
+    // Synchroniser les checkboxes de statut
+    document.getElementById('filter-libre').checked = currentFilters.status.includes('libre');
+    document.getElementById('filter-occupe').checked = currentFilters.status.includes('occupé');
+
+    // Synchroniser les checkboxes d'Epis
+    document.getElementById('filter-rue').checked = currentFilters.epis.includes('Rue');
+    document.getElementById('filter-epis1').checked = currentFilters.epis.includes('Epis 1');
+    document.getElementById('filter-epis2').checked = currentFilters.epis.includes('Epis 2');
+    document.getElementById('filter-epis3').checked = currentFilters.epis.includes('Epis 3');
+    document.getElementById('filter-epis4').checked = currentFilters.epis.includes('Epis 4');
+    document.getElementById('filter-epis5').checked = currentFilters.epis.includes('Epis 5');
+
+    // Synchroniser les checkboxes d'étages
+    document.getElementById('filter-floor0').checked = currentFilters.floors.includes('Rez-de-chaussée');
+    document.getElementById('filter-floor1').checked = currentFilters.floors.includes('1er étage');
+    document.getElementById('filter-floor2').checked = currentFilters.floors.includes('2ème étage');
+    document.getElementById('filter-floor3').checked = currentFilters.floors.includes('3ème étage');
+    document.getElementById('filter-floor4').checked = currentFilters.floors.includes('4ème étage');
+  }
+
   // Initialiser l'état
   handleScroll();
+
+  // Synchroniser les filtres au chargement
+  document.addEventListener('DOMContentLoaded', initializeFilters);
 
   // Charger les données au démarrage
   loadRoomsFromAPI();
