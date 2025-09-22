@@ -1,6 +1,6 @@
 // Service Worker pour Salles ESIEE PWA
-const CACHE_NAME = 'salles-esiee-v7';
-const API_CACHE_NAME = 'salles-esiee-api-v7';
+const CACHE_NAME = 'salles-esiee-v8';
+const API_CACHE_NAME = 'salles-esiee-api-v8';
 
 // Fichiers à mettre en cache (ressources statiques)
 const STATIC_CACHE_URLS = [
