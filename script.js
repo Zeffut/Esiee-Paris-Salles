@@ -411,6 +411,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Fonction pour filtrer les salles
   function filterRooms() {
     const allCards = document.querySelectorAll('.card');
+    const searchInput = document.querySelector('.search input[type="text"]');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
     allCards.forEach(card => {
       const roomNumber = card.querySelector('.room-number').textContent;
@@ -421,15 +423,28 @@ document.addEventListener('DOMContentLoaded', function() {
       const roomEpis = getRoomEpis(roomNumber);
       const roomFloor = getRoomFloor(roomNumber);
 
+      // Recherche textuelle - chercher dans le numéro de salle ET dans les descriptions
+      const searchableText = [
+        roomNumber,                    // Numéro de la salle (ex: "160", "1234")
+        `Salle ${roomNumber}`,        // Nom complet (ex: "Salle 160")
+        room.type || 'Salle classique', // Type (ex: "Amphithéâtre", "Salle classique")
+        room.board || '',             // Type de tableau (ex: "Tableau à craie")
+        room.capacity || '',          // Capacité (ex: "80", "30")
+        roomEpis,                     // Epis (ex: "Rue", "Epis 1")
+        roomFloor,                    // Étage (ex: "1er étage")
+        roomStatus                    // Status (ex: "libre", "occupé")
+      ].join(' ').toLowerCase();
+
+      const searchMatch = searchTerm === '' || searchableText.includes(searchTerm);
+
       // Vérifier si la salle correspond aux filtres
       const statusMatch = currentFilters.status.includes(roomStatus);
       const typeMatch = currentFilters.type.includes(room.type);
       const episMatch = currentFilters.epis.includes(roomEpis);
       const floorMatch = currentFilters.floors.includes(roomFloor);
 
-
-      // Afficher ou masquer la carte
-      if (statusMatch && typeMatch && episMatch && floorMatch) {
+      // Afficher ou masquer la carte (doit correspondre aux filtres ET à la recherche)
+      if (searchMatch && statusMatch && typeMatch && episMatch && floorMatch) {
         card.style.display = 'flex';
       } else {
         card.style.display = 'none';
@@ -450,6 +465,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.filter-checkbox input[type="checkbox"]').forEach(checkbox => {
       checkbox.checked = true;
     });
+
+    // Effacer la barre de recherche
+    const searchInput = document.querySelector('.search input[type="text"]');
+    if (searchInput) {
+      searchInput.value = '';
+    }
 
     // Afficher toutes les salles en utilisant la fonction de filtrage
     filterRooms();
@@ -521,6 +542,22 @@ document.addEventListener('DOMContentLoaded', function() {
   // Event listeners pour les boutons de filtre
   document.getElementById('filterReset').addEventListener('click', resetFilters);
   document.getElementById('filterApply').addEventListener('click', applyFilters);
+
+  // Event listener pour la barre de recherche
+  const searchInput = document.querySelector('.search input[type="text"]');
+  if (searchInput) {
+    // Recherche en temps réel pendant la saisie
+    searchInput.addEventListener('input', function() {
+      filterRooms();
+    });
+
+    // Recherche lors de l'appui sur Entrée
+    searchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        filterRooms();
+      }
+    });
+  }
 
   // Event listener pour ouvrir la page profil depuis le menu
   document.getElementById('profileMenuItem').addEventListener('click', function(e) {
