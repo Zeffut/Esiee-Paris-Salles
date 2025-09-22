@@ -1,6 +1,6 @@
 // Service Worker pour Salles ESIEE PWA
-const CACHE_NAME = 'salles-esiee-v8';
-const API_CACHE_NAME = 'salles-esiee-api-v8';
+const CACHE_NAME = 'salles-esiee-v9';
+const API_CACHE_NAME = 'salles-esiee-api-v9';
 
 // Fichiers à mettre en cache (ressources statiques)
 const STATIC_CACHE_URLS = [
@@ -97,8 +97,8 @@ async function cacheFirstStrategy(request) {
     // Si pas en cache, récupérer depuis le réseau
     const networkResponse = await fetch(request);
 
-    // Mettre en cache la réponse si elle est valide
-    if (networkResponse.ok) {
+    // Mettre en cache la réponse si elle est valide et si la méthode le permet
+    if (networkResponse.ok && request.method === 'GET') {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, networkResponse.clone());
     }

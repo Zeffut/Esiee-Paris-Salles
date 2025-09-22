@@ -2,7 +2,7 @@
   "name": "Salles ESIEE",
   "short_name": "Salles ESIEE",
   "description": "Application de consultation des salles ESIEE - Disponibilité en temps réel",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#161617",
