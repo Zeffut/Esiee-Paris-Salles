@@ -1,6 +1,30 @@
 
 
 
+// Fonction pour vérifier les mises à jour
+function checkForUpdates() {
+  const currentVersion = document.querySelector('meta[name="version"]').content;
+
+  // Vérifier périodiquement s'il y a une nouvelle version
+  setInterval(() => {
+    fetch('/index.html?' + Date.now())
+      .then(response => response.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newVersion = doc.querySelector('meta[name="version"]').content;
+
+        if (newVersion !== currentVersion) {
+          console.log('🆕 Nouvelle version détectée:', newVersion);
+          if (confirm('Une nouvelle version est disponible. Recharger la page ?')) {
+            window.location.reload(true);
+          }
+        }
+      })
+      .catch(err => console.log('Vérification version échouée:', err));
+  }, 60000); // Vérifier toutes les minutes
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const titleSection = document.querySelector('.title-section');
   const titleInline = document.querySelector('.title-inline');
@@ -972,6 +996,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Charger les données au démarrage
   loadRoomsFromAPI();
 
+  // Démarrer la vérification des mises à jour
+  checkForUpdates();
 
   // Initialiser l'authentification Google
   initializeGoogleAuth();
