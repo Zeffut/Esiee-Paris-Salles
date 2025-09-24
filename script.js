@@ -243,6 +243,85 @@ document.addEventListener('DOMContentLoaded', function() {
   // Utiliser HTTPS via tunnel FRP
   const API_BASE_URL = 'https://api.zeffut.fr/api';
 
+  // Fonction pour calculer le statut d'une salle en temps réel
+  function calculateRoomStatus(roomNumber) {
+    const schedule = roomSchedules[roomNumber];
+    if (!schedule || schedule.length === 0) {
+      return 'libre'; // Aucun événement = salle libre
+    }
+
+    const now = new Date();
+
+    // Parcourir les événements pour voir si un cours est en cours
+    for (const event of schedule) {
+      const startTime = new Date(event.start);
+      const endTime = new Date(event.end);
+
+      // Vérifier si nous sommes dans la plage horaire du cours
+      if (startTime <= now && now < endTime) {
+        return 'occupé';
+      }
+    }
+
+    return 'libre';
+  }
+
+  // Fonction pour mettre à jour tous les statuts des salles
+  function updateAllRoomStatuses() {
+    for (const roomNumber in roomSchedules) {
+      roomStatuses[roomNumber] = calculateRoomStatus(roomNumber);
+    }
+  }
+
+  // Fonction pour obtenir le prochain cours d'une salle
+  function getNextCourse(roomNumber) {
+    const schedule = roomSchedules[roomNumber];
+    if (!schedule || schedule.length === 0) {
+      return null;
+    }
+
+    const now = new Date();
+
+    for (const event of schedule) {
+      const startTime = new Date(event.start);
+
+      if (startTime > now) {
+        return {
+          start: startTime,
+          end: new Date(event.end),
+          summary: event.summary
+        };
+      }
+    }
+
+    return null; // Aucun cours à venir
+  }
+
+  // Fonction pour obtenir le cours en cours d'une salle
+  function getCurrentCourse(roomNumber) {
+    const schedule = roomSchedules[roomNumber];
+    if (!schedule || schedule.length === 0) {
+      return null;
+    }
+
+    const now = new Date();
+
+    for (const event of schedule) {
+      const startTime = new Date(event.start);
+      const endTime = new Date(event.end);
+
+      if (startTime <= now && now < endTime) {
+        return {
+          start: startTime,
+          end: endTime,
+          summary: event.summary
+        };
+      }
+    }
+
+    return null;
+  }
+
 
   // Données par défaut en attendant l'API
   const defaultRoomData = {
@@ -279,6 +358,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   let roomData = defaultRoomData;
   let roomStatuses = defaultRoomStatuses;
+  let roomSchedules = {}; // Emplois du temps des salles pour calcul temps réel
 
   // État des filtres - Afficher toutes les salles par défaut
   let currentFilters = {
@@ -321,6 +401,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Charger l'emploi du temps du jour actuel pour une salle
   async function loadTodaySchedule(roomNumber) {
+    // Utiliser l'emploi du temps déjà chargé si disponible
+    if (roomSchedules[roomNumber]) {
+      displayTodayScheduleFromCache(roomNumber);
+      return;
+    }
+
+    // Fallback : charger depuis l'API
     try {
       const response = await fetch(`${API_BASE_URL}/rooms/${roomNumber}/schedule`);
       if (response.ok) {
@@ -332,6 +419,41 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (error) {
       displayTodaySchedule(null);
     }
+  }
+
+  // Afficher l'emploi du temps depuis le cache local
+  function displayTodayScheduleFromCache(roomNumber) {
+    const schedule = roomSchedules[roomNumber];
+    if (!schedule || schedule.length === 0) {
+      displayTodaySchedule(null);
+      return;
+    }
+
+    // Filtrer les événements d'aujourd'hui
+    const now = new Date();
+    const today = now.toDateString();
+
+    const todayEvents = schedule.filter(event => {
+      const eventDate = new Date(event.start);
+      return eventDate.toDateString() === today;
+    });
+
+    // Convertir en format attendu par displayTodaySchedule
+    const formattedSchedule = {
+      [getDayName(now.getDay()).toLowerCase()]: todayEvents.map(event => ({
+        start: new Date(event.start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        end: new Date(event.end).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        course: event.summary
+      }))
+    };
+
+    displayTodaySchedule(formattedSchedule);
+  }
+
+  // Fonction utilitaire pour obtenir le nom du jour
+  function getDayName(dayIndex) {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return days[dayIndex];
   }
 
   // Afficher l'emploi du temps du jour dans le modal
@@ -661,11 +783,35 @@ document.addEventListener('DOMContentLoaded', function() {
       if (response.ok) {
         const data = await response.json();
 
-        // Nouvelle API dynamique : convertir rooms_list en format attendu par le frontend
-        if (data.rooms_list && Array.isArray(data.rooms_list)) {
-          console.log(`🚀 API dynamique: ${data.rooms_list.length} salles chargées`);
+        // Vérifier si l'API supporte le calcul côté client
+        if (data.client_status_calculation && data.room_schedules) {
+          console.log(`🚀 API avec calcul côté client: ${Object.keys(data.room_schedules).length} salles chargées`);
 
-          // Convertir le format de l'API en format attendu par le frontend
+          // Charger les emplois du temps
+          roomSchedules = data.room_schedules;
+
+          // Convertir le format de l'API
+          roomData = {};
+
+          if (data.rooms_list && Array.isArray(data.rooms_list)) {
+            data.rooms_list.forEach(room => {
+              roomData[room.number] = {
+                name: room.name,
+                board: room.board,
+                capacity: room.capacity,
+                type: room.type
+              };
+            });
+          }
+
+          // Calculer les statuts en temps réel côté client
+          updateAllRoomStatuses();
+          console.log('✅ Statuts calculés côté client en temps réel');
+
+        } else if (data.rooms_list && Array.isArray(data.rooms_list)) {
+          // Fallback : ancien format avec statuts pré-calculés
+          console.log(`🚀 API classique: ${data.rooms_list.length} salles chargées`);
+
           roomData = {};
           roomStatuses = {};
 
@@ -676,12 +822,11 @@ document.addEventListener('DOMContentLoaded', function() {
               capacity: room.capacity,
               type: room.type
             };
-            roomStatuses[room.number] = room.status;
-
+            roomStatuses[room.number] = room.status || 'libre';
           });
 
         } else {
-          // Ancien format (fallback)
+          // Fallback vers les données par défaut
           roomData = data.rooms || defaultRoomData;
           roomStatuses = data.statuses || defaultRoomStatuses;
         }
@@ -1113,8 +1258,37 @@ document.addEventListener('DOMContentLoaded', function() {
   // Synchroniser les filtres au chargement
   document.addEventListener('DOMContentLoaded', initializeFilters);
 
+  // Fonction pour démarrer la mise à jour temps réel
+  function startRealTimeUpdates() {
+    // Mettre à jour les statuts toutes les 30 secondes
+    setInterval(() => {
+      if (Object.keys(roomSchedules).length > 0) {
+        const oldStatuses = { ...roomStatuses };
+        updateAllRoomStatuses();
+
+        // Vérifier si des statuts ont changé
+        let hasChanged = false;
+        for (const roomNumber in roomStatuses) {
+          if (oldStatuses[roomNumber] !== roomStatuses[roomNumber]) {
+            hasChanged = true;
+            console.log(`🔄 Statut changé pour salle ${roomNumber}: ${oldStatuses[roomNumber]} → ${roomStatuses[roomNumber]}`);
+          }
+        }
+
+        // Re-rendre seulement si nécessaire
+        if (hasChanged) {
+          renderRooms();
+          console.log('✅ Interface mise à jour avec nouveaux statuts temps réel');
+        }
+      }
+    }, 30000); // 30 secondes
+  }
+
   // Charger les données au démarrage
   loadRoomsFromAPI();
+
+  // Démarrer les mises à jour temps réel
+  startRealTimeUpdates();
 
   // Initialiser l'authentification Google
   initializeGoogleAuth();
@@ -1174,7 +1348,93 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Nettoyage terminé - Rechargez la page');
   };
 
-  console.log('🛠️ Fonctions debug cookies disponibles:');
+  console.log('🛠️ Fonctions debug disponibles:');
   console.log('  - window.debugAnalyzeCookies() : Analyser les cookies');
   console.log('  - window.debugCleanCookies() : Nettoyer tous les cookies');
+  console.log('  - window.debugRoomStatus(roomNumber) : Tester le calcul de statut d\'une salle');
+  console.log('  - window.debugAllStatuses() : Afficher tous les statuts calculés');
+
+  // Fonction de debug pour tester le calcul de statut d'une salle
+  window.debugRoomStatus = function(roomNumber) {
+    console.log(`🔍 DEBUG STATUT SALLE ${roomNumber}`);
+    console.log('================================');
+
+    const schedule = roomSchedules[roomNumber];
+    if (!schedule) {
+      console.log('❌ Aucun emploi du temps trouvé pour cette salle');
+      return;
+    }
+
+    console.log(`📅 Emploi du temps (${schedule.length} événements):`);
+    const now = new Date();
+    console.log(`🕒 Heure actuelle: ${now.toLocaleString('fr-FR')}`);
+
+    schedule.forEach((event, index) => {
+      const startTime = new Date(event.start);
+      const endTime = new Date(event.end);
+      const isCurrentEvent = startTime <= now && now < endTime;
+      const eventStatus = isCurrentEvent ? '🔴 EN COURS' : (startTime > now ? '⏰ À VENIR' : '✅ TERMINÉ');
+
+      console.log(`  ${index + 1}. ${event.summary}`);
+      console.log(`     📍 ${startTime.toLocaleString('fr-FR')} → ${endTime.toLocaleString('fr-FR')}`);
+      console.log(`     ${eventStatus}`);
+    });
+
+    const calculatedStatus = calculateRoomStatus(roomNumber);
+    const currentCourse = getCurrentCourse(roomNumber);
+    const nextCourse = getNextCourse(roomNumber);
+
+    console.log(`\n📊 RÉSULTAT:`);
+    console.log(`   Statut calculé: ${calculatedStatus}`);
+
+    if (currentCourse) {
+      console.log(`   🔴 Cours en cours: ${currentCourse.summary}`);
+      console.log(`      Fin prévue: ${currentCourse.end.toLocaleTimeString('fr-FR')}`);
+    }
+
+    if (nextCourse) {
+      console.log(`   ⏰ Prochain cours: ${nextCourse.summary}`);
+      console.log(`      Début: ${nextCourse.start.toLocaleTimeString('fr-FR')}`);
+    }
+
+    return {
+      status: calculatedStatus,
+      currentCourse,
+      nextCourse,
+      totalEvents: schedule.length
+    };
+  };
+
+  // Fonction de debug pour afficher tous les statuts
+  window.debugAllStatuses = function() {
+    console.log('🔍 DEBUG TOUS LES STATUTS');
+    console.log('=========================');
+
+    const now = new Date();
+    console.log(`🕒 Heure: ${now.toLocaleString('fr-FR')}`);
+
+    let occupiedCount = 0;
+    let freeCount = 0;
+
+    for (const roomNumber in roomSchedules) {
+      const status = calculateRoomStatus(roomNumber);
+      const icon = status === 'occupé' ? '🔴' : '🟢';
+      console.log(`${icon} Salle ${roomNumber}: ${status}`);
+
+      if (status === 'occupé') {
+        occupiedCount++;
+        const currentCourse = getCurrentCourse(roomNumber);
+        if (currentCourse) {
+          console.log(`    📚 ${currentCourse.summary} (fin: ${currentCourse.end.toLocaleTimeString('fr-FR')})`);
+        }
+      } else {
+        freeCount++;
+      }
+    }
+
+    console.log(`\n📊 RÉSUMÉ:`);
+    console.log(`   🔴 ${occupiedCount} salles occupées`);
+    console.log(`   🟢 ${freeCount} salles libres`);
+    console.log(`   📈 Taux d'occupation: ${Math.round((occupiedCount / (occupiedCount + freeCount)) * 100)}%`);
+  };
 });
