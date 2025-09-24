@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', function() {
         case '3': return 'Epis 3';
         case '4': return 'Epis 4';
         case '5': return 'Epis 5';
+        case '6': return 'Epis 6';
+        case '7': return 'Epis 7';
         default: return 'Rue'; // Valeur par défaut
       }
     }
@@ -414,6 +416,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('filter-epis3').checked) currentFilters.epis.push('Epis 3');
     if (document.getElementById('filter-epis4').checked) currentFilters.epis.push('Epis 4');
     if (document.getElementById('filter-epis5').checked) currentFilters.epis.push('Epis 5');
+    if (document.getElementById('filter-epis6').checked) currentFilters.epis.push('Epis 6');
+    if (document.getElementById('filter-epis7').checked) currentFilters.epis.push('Epis 7');
 
     // Récupérer l'état des checkboxes d'Étage
     currentFilters.floors = [];
@@ -948,6 +952,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('filter-epis3').checked = currentFilters.epis.includes('Epis 3');
     document.getElementById('filter-epis4').checked = currentFilters.epis.includes('Epis 4');
     document.getElementById('filter-epis5').checked = currentFilters.epis.includes('Epis 5');
+    document.getElementById('filter-epis6').checked = currentFilters.epis.includes('Epis 6');
+    document.getElementById('filter-epis7').checked = currentFilters.epis.includes('Epis 7');
 
     // Synchroniser les checkboxes d'étages
     document.getElementById('filter-floor0').checked = currentFilters.floors.includes('Rez-de-chaussée');
