@@ -1,31 +1,157 @@
 
 
 
-// Fonction pour vérifier les mises à jour
+// Fonction pour vider le cache et les données du navigateur
+async function clearBrowserCache() {
+  console.log('🧹 Nettoyage du cache navigateur...');
+
+  try {
+    // 1. Vider le cache API si disponible
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      console.log('🗑️ Suppression des caches:', cacheNames);
+      await Promise.all(
+        cacheNames.map(cacheName => caches.delete(cacheName))
+      );
+    }
+
+    // 2. Vider le localStorage
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+      console.log('🗑️ localStorage vidé');
+    }
+
+    // 3. Vider le sessionStorage
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.clear();
+      console.log('🗑️ sessionStorage vidé');
+    }
+
+    // 4. Supprimer les cookies du domaine
+    const cookies = document.cookie.split(";");
+    cookies.forEach(cookie => {
+      const eqPos = cookie.indexOf("=");
+      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+      if (name) {
+        // Supprimer le cookie pour le domaine actuel et tous les chemins
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
+      }
+    });
+    console.log('🗑️ Cookies supprimés');
+
+    // 5. Désenregistrer les Service Workers existants
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations.map(registration => registration.unregister())
+      );
+      console.log('🗑️ Service Workers désenregistrés');
+    }
+
+    console.log('✅ Cache navigateur nettoyé');
+    return true;
+  } catch (error) {
+    console.warn('⚠️ Erreur lors du nettoyage:', error);
+    return false;
+  }
+}
+
+// Fonction pour forcer le rechargement complet avec cache vide
+function forceHardReload() {
+  console.log('🔄 Rechargement forcé avec cache vide...');
+
+  // Plusieurs méthodes pour forcer le rechargement
+  try {
+    // Méthode 1: location.reload avec forceReload
+    window.location.reload(true);
+  } catch (e) {
+    try {
+      // Méthode 2: Redirection avec timestamp
+      window.location.href = window.location.href + (window.location.href.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    } catch (e2) {
+      // Méthode 3: Rechargement simple
+      window.location.reload();
+    }
+  }
+}
+
+// Fonction pour vérifier les mises à jour avec nettoyage automatique
 function checkForUpdates() {
   const currentVersion = document.querySelector('meta[name="version"]').content;
+  console.log('🔍 Version actuelle:', currentVersion);
 
-  // Vérifier périodiquement s'il y a une nouvelle version
-  setInterval(() => {
-    fetch('/index.html?' + Date.now())
+  // Vérifier immédiatement au démarrage
+  checkVersion();
+
+  // Puis vérifier périodiquement
+  setInterval(checkVersion, 30000); // Toutes les 30 secondes
+
+  function checkVersion() {
+    fetch('/index.html?' + Date.now(), {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    })
       .then(response => response.text())
-      .then(html => {
+      .then(async html => {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        const newVersion = doc.querySelector('meta[name="version"]').content;
+        const newVersion = doc.querySelector('meta[name="version"]')?.content;
 
-        if (newVersion !== currentVersion) {
-          console.log('🆕 Nouvelle version détectée:', newVersion);
-          if (confirm('Une nouvelle version est disponible. Recharger la page ?')) {
-            window.location.reload(true);
+        if (newVersion && newVersion !== currentVersion) {
+          console.log('🆕 Nouvelle version détectée!');
+          console.log('📦 Ancienne:', currentVersion);
+          console.log('📦 Nouvelle:', newVersion);
+
+          // Nettoyer automatiquement le cache
+          const cleaned = await clearBrowserCache();
+
+          // Afficher une notification et recharger
+          if (confirm('🔄 Nouvelle version disponible!\n\nLe cache va être vidé et la page rechargée.')) {
+            forceHardReload();
+          } else {
+            // Même si l'utilisateur refuse, on nettoie le cache pour la prochaine fois
+            console.log('🧹 Cache nettoyé, rechargement manuel nécessaire');
           }
         }
       })
       .catch(err => console.log('Vérification version échouée:', err));
-  }, 60000); // Vérifier toutes les minutes
+  }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+// Fonction pour vérifier et nettoyer au démarrage
+async function checkAndCleanOnStartup() {
+  const currentVersion = document.querySelector('meta[name="version"]').content;
+  const storedVersion = localStorage.getItem('app_version');
+
+  console.log('🚀 Démarrage - Version actuelle:', currentVersion);
+  console.log('💾 Version stockée:', storedVersion);
+
+  if (storedVersion && storedVersion !== currentVersion) {
+    console.log('🆕 Nouvelle version détectée au démarrage!');
+
+    // Nettoyer le cache automatiquement
+    await clearBrowserCache();
+
+    // Sauvegarder la nouvelle version
+    localStorage.setItem('app_version', currentVersion);
+
+    console.log('✅ Cache nettoyé et version mise à jour');
+  } else if (!storedVersion) {
+    // Première visite, sauvegarder la version
+    localStorage.setItem('app_version', currentVersion);
+    console.log('🆕 Première visite - Version sauvegardée');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+  // Vérifier et nettoyer le cache si nécessaire
+  await checkAndCleanOnStartup();
+
   const titleSection = document.querySelector('.title-section');
   const titleInline = document.querySelector('.title-inline');
   const grid = document.querySelector('.grid');
@@ -1001,4 +1127,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Initialiser l'authentification Google
   initializeGoogleAuth();
+
+  // Exposer les fonctions de debug globalement (pour tests)
+  window.debugClearCache = clearBrowserCache;
+  window.debugCheckVersion = checkForUpdates;
+  window.debugForceReload = forceHardReload;
+
+  console.log('🛠️ Fonctions debug disponibles:');
+  console.log('  - window.debugClearCache() : Vider le cache');
+  console.log('  - window.debugCheckVersion() : Vérifier nouvelle version');
+  console.log('  - window.debugForceReload() : Forcer rechargement');
 });
