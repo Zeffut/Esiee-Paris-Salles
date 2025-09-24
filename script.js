@@ -1,6 +1,104 @@
 
 
 
+// NETTOYAGE SÉLECTIF DES COOKIES - Conserver uniquement les cookies nécessaires
+(function() {
+  const CURRENT_VERSION = 'v2025-09-24-selective';
+  const storedVersion = localStorage.getItem('site_version');
+
+  // Cookies à CONSERVER (nécessaires au fonctionnement)
+  const COOKIES_TO_KEEP = [
+    'g_state',           // Google Auth
+    'g_csrf_token',      // Google CSRF
+    'user_preferences',  // Préférences utilisateur (si tu en as)
+    'auth_token',        // Token d'authentification (si tu en as)
+    'theme',             // Thème choisi (si tu en as)
+    'language',          // Langue (si tu en as)
+    'site_version'       // Notre version
+  ];
+
+  function cleanSelectiveCookies() {
+    console.log('🧹 Nettoyage sélectif des cookies...');
+
+    // Analyser tous les cookies présents
+    const allCookies = document.cookie.split(';');
+    const cookiesInfo = [];
+
+    allCookies.forEach(cookie => {
+      const eqPos = cookie.indexOf('=');
+      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+      const value = eqPos > -1 ? cookie.substr(eqPos + 1) : '';
+
+      if (name) {
+        cookiesInfo.push({ name, value, size: value.length });
+
+        // Supprimer les cookies NON nécessaires
+        if (!COOKIES_TO_KEEP.includes(name)) {
+          console.log(`🗑️ Suppression cookie: ${name} (${value.length} chars)`);
+
+          // Supprimer pour différents chemins et domaines
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
+        } else {
+          console.log(`✅ Conservé cookie: ${name} (${value.length} chars)`);
+        }
+      }
+    });
+
+    console.log('📊 Analyse des cookies:', cookiesInfo);
+    return cookiesInfo;
+  }
+
+  function cleanOtherCaches() {
+    console.log('🧹 Nettoyage autres caches...');
+
+    // Vider cache API
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        console.log('🗑️ Suppression caches API:', keys);
+        keys.forEach(key => caches.delete(key));
+      });
+    }
+
+    // Nettoyer localStorage (sauf version)
+    const currentVersion = localStorage.getItem('site_version');
+    const userPrefs = localStorage.getItem('user_preferences'); // Si tu en as
+    localStorage.clear();
+    if (currentVersion) localStorage.setItem('site_version', currentVersion);
+    if (userPrefs) localStorage.setItem('user_preferences', userPrefs);
+
+    // Vider sessionStorage
+    sessionStorage.clear();
+
+    console.log('✅ Autres caches nettoyés');
+  }
+
+  if (!storedVersion || storedVersion !== CURRENT_VERSION) {
+    console.log('🔄 Nouvelle version détectée, nettoyage sélectif...');
+
+    // Analyser et nettoyer
+    const cookiesInfo = cleanSelectiveCookies();
+    cleanOtherCaches();
+
+    // Sauvegarder nouvelle version
+    localStorage.setItem('site_version', CURRENT_VERSION);
+
+    // Afficher rapport
+    console.log('📋 Rapport de nettoyage:');
+    console.log(`- Cookies analysés: ${cookiesInfo.length}`);
+    console.log(`- Cookies conservés: ${COOKIES_TO_KEEP.length}`);
+    console.log(`- Taille totale cookies restants: ${document.cookie.length} chars`);
+
+    // Forcer rechargement avec cache-busting
+    setTimeout(() => {
+      window.location.href = window.location.href.split('?')[0] + '?_cb=' + Date.now();
+    }, 500);
+
+    return;
+  }
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
 
   const titleSection = document.querySelector('.title-section');
@@ -975,4 +1073,63 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Initialiser l'authentification Google
   initializeGoogleAuth();
+
+  // Fonctions de debug pour analyser les cookies
+  window.debugAnalyzeCookies = function() {
+    console.log('🔍 ANALYSE COMPLÈTE DES COOKIES');
+    console.log('================================');
+
+    const cookies = document.cookie.split(';');
+    let totalSize = 0;
+    const cookieDetails = [];
+
+    cookies.forEach(cookie => {
+      const eqPos = cookie.indexOf('=');
+      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+      const value = eqPos > -1 ? cookie.substr(eqPos + 1) : '';
+
+      if (name) {
+        const size = value.length;
+        totalSize += size;
+        cookieDetails.push({ name, size, value: value.substring(0, 100) + (size > 100 ? '...' : '') });
+
+        if (size > 1000) {
+          console.warn(`🚨 Cookie volumineux: ${name} (${size} chars)`);
+        }
+      }
+    });
+
+    console.table(cookieDetails);
+    console.log(`📊 Total: ${cookies.length} cookies, ${totalSize} chars`);
+    console.log('🧹 Pour nettoyer: window.debugCleanCookies()');
+
+    return cookieDetails;
+  };
+
+  window.debugCleanCookies = function() {
+    console.log('🧹 NETTOYAGE MANUEL DES COOKIES');
+    console.log('===============================');
+
+    const cookies = document.cookie.split(';');
+    cookies.forEach(cookie => {
+      const eqPos = cookie.indexOf('=');
+      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+
+      if (name) {
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
+        console.log(`🗑️ Supprimé: ${name}`);
+      }
+    });
+
+    localStorage.clear();
+    sessionStorage.clear();
+
+    console.log('✅ Nettoyage terminé - Rechargez la page');
+  };
+
+  console.log('🛠️ Fonctions debug cookies disponibles:');
+  console.log('  - window.debugAnalyzeCookies() : Analyser les cookies');
+  console.log('  - window.debugCleanCookies() : Nettoyer tous les cookies');
 });
