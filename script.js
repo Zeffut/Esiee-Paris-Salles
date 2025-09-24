@@ -3,24 +3,79 @@
 
 // NETTOYAGE SÉLECTIF DES COOKIES - Conserver uniquement les cookies nécessaires
 (function() {
-  const CURRENT_VERSION = 'v2025-09-24-selective';
-  const storedVersion = localStorage.getItem('site_version');
+  const CURRENT_VERSION = 'v2025-09-24-force-update';
+  const storedVersion = localStorage.getItem('esiee_app_version');
 
-  // Cookies à CONSERVER (nécessaires au fonctionnement)
+  // Cookies à CONSERVER (nécessaires au fonctionnement) - NOUVEAUX NOMS
   const COOKIES_TO_KEEP = [
-    'g_state',           // Google Auth
-    'g_csrf_token',      // Google CSRF
-    'user_preferences',  // Préférences utilisateur (si tu en as)
-    'auth_token',        // Token d'authentification (si tu en as)
-    'theme',             // Thème choisi (si tu en as)
-    'language',          // Langue (si tu en as)
-    'site_version'       // Notre version
+    'g_state',                // Google Auth
+    'g_csrf_token',          // Google CSRF
+    'esiee_user_prefs',      // Préférences utilisateur (nouveau nom)
+    'esiee_auth_token',      // Token d'authentification (nouveau nom)
+    'esiee_theme',           // Thème choisi (nouveau nom)
+    'esiee_language',        // Langue (nouveau nom)
+    'esiee_app_version'      // Notre version (nouveau nom)
   ];
+
+  function forceCleanAllOldCookies() {
+    console.log('🔥 NETTOYAGE FORCÉ - Suppression de TOUS les anciens cookies...');
+
+    // Liste des cookies suspects/problématiques (anciens noms + patterns)
+    const SUSPICIOUS_PATTERNS = [
+      'site_version',      // Ancien nom
+      'user_preferences',  // Ancien nom
+      'auth_token',        // Ancien nom
+      'theme',             // Ancien nom générique
+      'language',          // Ancien nom générique
+      'cache_',            // Tout ce qui commence par cache_
+      'old_',              // Tout ce qui commence par old_
+      'temp_',             // Tout ce qui commence par temp_
+      'app_'               // Tout ce qui commence par app_
+    ];
+
+    const allCookies = document.cookie.split(';');
+    let cleanedCount = 0;
+
+    allCookies.forEach(cookie => {
+      const eqPos = cookie.indexOf('=');
+      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+
+      if (name) {
+        // Supprimer les cookies suspects OU très volumineux
+        const value = eqPos > -1 ? cookie.substr(eqPos + 1) : '';
+        const isLarge = value.length > 2000; // Plus de 2KB = suspect
+        const isSuspicious = SUSPICIOUS_PATTERNS.some(pattern =>
+          name.includes(pattern) || name.startsWith(pattern.replace('_', ''))
+        );
+        const isOldNaming = !name.startsWith('esiee_') && !name.startsWith('g_');
+
+        if (isLarge || isSuspicious || isOldNaming) {
+          console.log(`🔥 Suppression forcée: ${name} (${value.length} chars) - ${isLarge ? 'VOLUMINEUX' : ''} ${isSuspicious ? 'SUSPECT' : ''} ${isOldNaming ? 'ANCIEN' : ''}`);
+
+          // Supprimer agressivement
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname.split('.').slice(-2).join('.')}`;
+
+          cleanedCount++;
+        } else if (COOKIES_TO_KEEP.includes(name)) {
+          console.log(`✅ Conservé cookie essentiel: ${name} (${value.length} chars)`);
+        }
+      }
+    });
+
+    console.log(`🔥 Nettoyage forcé terminé: ${cleanedCount} cookies supprimés`);
+    return cleanedCount;
+  }
 
   function cleanSelectiveCookies() {
     console.log('🧹 Nettoyage sélectif des cookies...');
 
-    // Analyser tous les cookies présents
+    // D'abord le nettoyage forcé
+    const forceCleaned = forceCleanAllOldCookies();
+
+    // Ensuite analyser ce qui reste
     const allCookies = document.cookie.split(';');
     const cookiesInfo = [];
 
@@ -31,23 +86,11 @@
 
       if (name) {
         cookiesInfo.push({ name, value, size: value.length });
-
-        // Supprimer les cookies NON nécessaires
-        if (!COOKIES_TO_KEEP.includes(name)) {
-          console.log(`🗑️ Suppression cookie: ${name} (${value.length} chars)`);
-
-          // Supprimer pour différents chemins et domaines
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
-        } else {
-          console.log(`✅ Conservé cookie: ${name} (${value.length} chars)`);
-        }
       }
     });
 
-    console.log('📊 Analyse des cookies:', cookiesInfo);
-    return cookiesInfo;
+    console.log('📊 Cookies restants après nettoyage:', cookiesInfo);
+    return { cleaned: forceCleaned, remaining: cookiesInfo };
   }
 
   function cleanOtherCaches() {
@@ -61,12 +104,12 @@
       });
     }
 
-    // Nettoyer localStorage (sauf version)
-    const currentVersion = localStorage.getItem('site_version');
-    const userPrefs = localStorage.getItem('user_preferences'); // Si tu en as
+    // Nettoyer localStorage (sauf version) - NOUVEAUX NOMS
+    const currentVersion = localStorage.getItem('esiee_app_version');
+    const userPrefs = localStorage.getItem('esiee_user_prefs'); // Si tu en as
     localStorage.clear();
-    if (currentVersion) localStorage.setItem('site_version', currentVersion);
-    if (userPrefs) localStorage.setItem('user_preferences', userPrefs);
+    if (currentVersion) localStorage.setItem('esiee_app_version', currentVersion);
+    if (userPrefs) localStorage.setItem('esiee_user_prefs', userPrefs);
 
     // Vider sessionStorage
     sessionStorage.clear();
@@ -82,13 +125,15 @@
     cleanOtherCaches();
 
     // Sauvegarder nouvelle version
-    localStorage.setItem('site_version', CURRENT_VERSION);
+    localStorage.setItem('esiee_app_version', CURRENT_VERSION);
 
     // Afficher rapport
     console.log('📋 Rapport de nettoyage:');
-    console.log(`- Cookies analysés: ${cookiesInfo.length}`);
-    console.log(`- Cookies conservés: ${COOKIES_TO_KEEP.length}`);
+    console.log(`- Cookies supprimés (forcé): ${cookiesInfo.cleaned}`);
+    console.log(`- Cookies restants: ${cookiesInfo.remaining.length}`);
+    console.log(`- Cookies autorisés: ${COOKIES_TO_KEEP.length}`);
     console.log(`- Taille totale cookies restants: ${document.cookie.length} chars`);
+    console.log('🎯 Version forcée appliquée:', CURRENT_VERSION);
 
     // Forcer rechargement avec cache-busting
     setTimeout(() => {
