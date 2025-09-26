@@ -208,6 +208,9 @@ def get_room_floor(room_number):
 @app.route('/api/rooms', methods=['GET'])
 def get_rooms():
     """Endpoint pour récupérer toutes les salles avec leurs emplois du temps (100% dynamique)"""
+    # Initialiser le cache pour Vercel
+    init_cache_if_needed()
+
     try:
         rooms_data = get_dynamic_rooms_data()
         room_schedules = get_dynamic_room_schedules()
@@ -700,21 +703,52 @@ def refresh_cache():
         }), 500
 
 
-# Initialiser le cache au démarrage (100% dynamique)
-print("🚀 Initialisation du cache ESIEE dynamique...")
-try:
-    cache_data = cache_manager.get_cached_data()
-    if cache_data:
-        cached_rooms = cache_data.get('rooms_data', {})
-        print(f"✅ Cache initialisé: {len(cached_rooms)} salles dynamiques chargées")
-        print(f"📊 API 100% dynamique - Aucune salle fixe utilisée")
-    else:
-        print("⚠️ Aucune donnée de cache disponible, forçage du rafraîchissement...")
-        cache_manager.force_refresh()
-except Exception as e:
-    print(f"❌ Erreur lors de l'initialisation du cache: {e}")
+# Variable globale pour le cache en mémoire (Vercel)
+_memory_cache = None
+_cache_timestamp = None
 
+def init_cache_if_needed():
+    """Initialise le cache si nécessaire (pour Vercel serverless)"""
+    global _memory_cache, _cache_timestamp
+
+    try:
+        # Vérifier si on a déjà un cache en mémoire valide
+        if _memory_cache and _cache_timestamp:
+            age = datetime.now() - _cache_timestamp
+            if age.total_seconds() < 3600:  # Cache valide 1 heure
+                return _memory_cache
+
+        # Tenter de charger depuis le fichier
+        cache_data = cache_manager.get_cached_data()
+        if not cache_data:
+            print("⚠️ Cache vide, forçage du rafraîchissement...")
+            cache_manager.force_refresh()
+            cache_data = cache_manager.get_cached_data()
+
+        # Stocker en mémoire pour Vercel
+        _memory_cache = cache_data
+        _cache_timestamp = datetime.now()
+
+        return cache_data
+    except Exception as e:
+        print(f"❌ Erreur lors de l'initialisation du cache: {e}")
+        return None
+
+# Initialiser le cache au démarrage pour le développement local
 if __name__ == '__main__':
+    print("🚀 Initialisation du cache ESIEE dynamique...")
+    try:
+        cache_data = cache_manager.get_cached_data()
+        if cache_data:
+            cached_rooms = cache_data.get('rooms_data', {})
+            print(f"✅ Cache initialisé: {len(cached_rooms)} salles dynamiques chargées")
+            print(f"📊 API 100% dynamique - Aucune salle fixe utilisée")
+        else:
+            print("⚠️ Aucune donnée de cache disponible, forçage du rafraîchissement...")
+            cache_manager.force_refresh()
+    except Exception as e:
+        print(f"❌ Erreur lors de l'initialisation du cache: {e}")
+
     import os
     # Port configurable via variable d'environnement
     port = 3001
@@ -722,3 +756,6 @@ if __name__ == '__main__':
 
     print(f"🚀 Démarrage de l'API ESIEE sur le port {port}")
     app.run(debug=debug, host='0.0.0.0', port=port)
+
+# Export de l'app pour Vercel (WSGI)
+# Vercel utilise l'objet 'app' directement pour les applications Flask
