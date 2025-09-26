@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+"""
+Gestionnaire de cache pour l'API ESIEE
+Récupère les données une fois par heure et les stocke en JSON
+"""
+
+import json
+import os
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+import logging
+from events_api import get_events_this_week, get_available_rooms_today
+
+logger = logging.getLogger(__name__)
+
+class ESIEECacheManager:
+    def __init__(self, cache_file: str = "esiee_cache.json", cache_duration_hours: int = 1):
+        self.cache_file = cache_file
+        self.cache_duration = timedelta(hours=cache_duration_hours)
+        self.cache_data = None
+        self.last_update = None
+
+        # Charger le cache existant s'il existe
+        self.load_cache()
+
+    def load_cache(self) -> bool:
+        """Charge le cache depuis le fichier JSON"""
+        try:
+            if os.path.exists(self.cache_file):
+                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                    cache_content = json.load(f)
+
+                self.cache_data = cache_content.get('data')
+                last_update_str = cache_content.get('last_update')
+
+                if last_update_str:
+                    self.last_update = datetime.fromisoformat(last_update_str)
+                    logger.info(f"📁 Cache chargé depuis {self.cache_file}, dernière MAJ: {self.last_update}")
+                    return True
+
+        except Exception as e:
+            logger.warning(f"⚠️ Erreur lors du chargement du cache: {e}")
+
+        return False
+
+    def save_cache(self) -> bool:
+        """Sauvegarde le cache dans le fichier JSON"""
+        try:
+            cache_content = {
+                'last_update': self.last_update.isoformat() if self.last_update else None,
+                'data': self.cache_data
+            }
+
+            with open(self.cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_content, f, ensure_ascii=False, indent=2, default=str)
+
+            logger.info(f"💾 Cache sauvegardé dans {self.cache_file}")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la sauvegarde du cache: {e}")
+            return False
+
+    def is_cache_valid(self) -> bool:
+        """Vérifie si le cache est encore valide"""
+        if not self.cache_data or not self.last_update:
+            return False
+
+        now = datetime.now()
+        return (now - self.last_update) < self.cache_duration
+
+    def refresh_cache(self) -> bool:
+        """Rafraîchit le cache avec de nouvelles données"""
+        logger.info("🔄 Rafraîchissement du cache ESIEE...")
+
+        try:
+            # Récupérer toutes les données ESIEE
+            logger.info("📡 Récupération des événements...")
+            events = get_events_this_week()
+
+            logger.info("🏢 Récupération des salles disponibles...")
+            available_rooms = get_available_rooms_today()
+
+            # Fonction de déduplication des événements
+            def deduplicate_events(events_list):
+                """Supprime les événements en doublons basés sur les propriétés clés"""
+                seen_events = set()
+                unique_events = []
+
+                for event in events_list:
+                    # Créer une clé unique basée sur les propriétés importantes de l'événement
+                    event_key = (
+                        event.get('summary', ''),
+                        event.get('room_full', ''),
+                        str(event.get('start_datetime', '')),
+                        str(event.get('end_datetime', ''))
+                    )
+
+                    if event_key not in seen_events:
+                        seen_events.add(event_key)
+                        unique_events.append(event)
+                    else:
+                        logger.debug(f"🔄 Doublon supprimé: {event.get('summary')} en {event.get('room_full')}")
+
+                return unique_events
+
+            # Dédupliquer les événements avant traitement
+            original_count = len(events)
+            events = deduplicate_events(events)
+            deduplicated_count = len(events)
+
+            if original_count != deduplicated_count:
+                logger.info(f"🧹 Déduplication: {original_count} → {deduplicated_count} événements ({original_count - deduplicated_count} doublons supprimés)")
+
+            # Extraire les salles PER avec nettoyage
+            all_per_rooms = set()
+            room_events = {}
+
+            for event in events:
+                location = event.get('room_full', '')
+                if 'PER - ' in location:
+                    room_numbers_raw = location.replace('PER - ', '').strip()
+                    # Nettoyer et valider
+                    import re
+
+                    # Gérer les salles multiples (ex: "113\,112\,165\,160\,164\,115")
+                    room_numbers = []
+                    if '\\,' in room_numbers_raw or ',' in room_numbers_raw:
+                        # Séparer les salles multiples
+                        room_list = room_numbers_raw.replace('\\,', ',').split(',')
+                        for room_num in room_list:
+                            room_num = room_num.strip()
+                            if re.match(r'^[0-9]{3,4}$', room_num):
+                                room_numbers.append(room_num)
+                    else:
+                        # Salle unique
+                        if re.match(r'^[0-9]{3,4}$', room_numbers_raw):
+                            room_numbers.append(room_numbers_raw)
+
+                    # Traiter chaque salle
+                    for room_number in room_numbers:
+                        all_per_rooms.add(room_number)
+
+                        # Organiser les événements par salle
+                        if room_number not in room_events:
+                            room_events[room_number] = []
+
+                        # Convertir les datetime en strings pour la sérialisation JSON
+                        serializable_event = event.copy()
+                        for key in ['start_datetime', 'end_datetime']:
+                            if key in serializable_event and isinstance(serializable_event[key], datetime):
+                                serializable_event[key] = serializable_event[key].isoformat()
+
+                        room_events[room_number].append(serializable_event)
+
+            # Organiser les emplois du temps par salle pour le calcul côté client
+            room_schedules = {}
+
+            for event in events:
+                location = event.get('room_full', '')
+                if 'PER - ' in location:
+                    room_numbers_raw = location.replace('PER - ', '').strip()
+                    start_time = event.get('start_datetime')
+                    end_time = event.get('end_datetime')
+
+                    # Convertir les datetime en strings pour JSON
+                    if isinstance(start_time, datetime):
+                        start_time_str = start_time.isoformat()
+                    else:
+                        start_time_str = str(start_time)
+
+                    if isinstance(end_time, datetime):
+                        end_time_str = end_time.isoformat()
+                    else:
+                        end_time_str = str(end_time)
+
+                    # Créer l'événement simplifié pour le client
+                    schedule_event = {
+                        'start': start_time_str,
+                        'end': end_time_str,
+                        'summary': event.get('summary', 'Cours')
+                    }
+
+                    # Gérer les salles multiples
+                    room_numbers = []
+                    if '\\,' in room_numbers_raw or ',' in room_numbers_raw:
+                        room_list = room_numbers_raw.replace('\\,', ',').split(',')
+                        for room_num in room_list:
+                            room_num = room_num.strip()
+                            if re.match(r'^[0-9]{3,4}$', room_num):
+                                room_numbers.append(room_num)
+                    else:
+                        if re.match(r'^[0-9]{3,4}$', room_numbers_raw):
+                            room_numbers.append(room_numbers_raw)
+
+                    # Ajouter l'événement à chaque salle concernée
+                    for room_number in room_numbers:
+                        if room_number not in room_schedules:
+                            room_schedules[room_number] = []
+                        room_schedules[room_number].append(schedule_event)
+
+            # Trier les emplois du temps par heure de début
+            for room_number in room_schedules:
+                room_schedules[room_number].sort(key=lambda x: x['start'])
+
+            logger.info(f"📊 Emplois du temps générés pour {len(room_schedules)} salles")
+
+            # Créer les données de salles
+            rooms_data = {}
+            for room in sorted(all_per_rooms, key=lambda x: (len(x), x)):
+                # Déterminer le type selon le numéro (les 4 amphithéâtres spécifiques)
+                if room in ['110', '160']:
+                    room_type = 'Amphithéâtre'
+                    capacity = '116'
+                    board = 'Tableau à craie'
+                if room in ['210', '260']:
+                    room_type = 'Amphithéâtre'
+                    capacity = '156'
+                    board = 'Tableau à craie'
+                else:
+                    room_type = 'Salle classique'
+                    capacity = '30'
+                    board = 'Tableau blanc'
+
+                rooms_data[room] = {
+                    'name': f'Salle {room}',
+                    'board': board,
+                    'capacity': capacity,
+                    'type': room_type
+                }
+
+            # Structurer les données du cache
+            self.cache_data = {
+                'events': events,
+                'available_rooms': list(available_rooms),
+                'room_schedules': room_schedules,  # Emplois du temps par salle pour le client
+                'rooms_data': rooms_data,
+                'room_events': room_events,
+                'stats': {
+                    'total_events': len(events),
+                    'total_rooms': len(all_per_rooms),
+                    'rooms_with_schedules': len(room_schedules)
+                }
+            }
+
+            self.last_update = datetime.now()
+
+            # Sauvegarder le cache
+            self.save_cache()
+
+            logger.info(f"✅ Cache rafraîchi: {len(events)} événements, {len(all_per_rooms)} salles")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Erreur lors du rafraîchissement du cache: {e}")
+            return False
+
+    def get_cached_data(self) -> Optional[Dict]:
+        """Récupère les données du cache, les rafraîchit si nécessaire"""
+        if not self.is_cache_valid():
+            logger.info("⏰ Cache expiré, rafraîchissement nécessaire")
+            if not self.refresh_cache():
+                logger.warning("⚠️ Échec du rafraîchissement, utilisation du cache existant")
+        else:
+            time_left = self.cache_duration - (datetime.now() - self.last_update)
+            logger.info(f"✅ Cache valide, prochaine MAJ dans {time_left}")
+
+        return self.cache_data
+
+    def force_refresh(self) -> bool:
+        """Force le rafraîchissement du cache"""
+        return self.refresh_cache()
+
+    def get_cache_info(self) -> Dict:
+        """Retourne les informations sur le cache"""
+        return {
+            'cache_file': self.cache_file,
+            'last_update': self.last_update.isoformat() if self.last_update else None,
+            'is_valid': self.is_cache_valid(),
+            'cache_duration_hours': self.cache_duration.total_seconds() / 3600,
+            'data_available': self.cache_data is not None
+        }
+
+# Instance globale du gestionnaire de cache
+cache_manager = ESIEECacheManager()
+
+def get_cached_events():
+    """Récupère les événements depuis le cache avec conversion des datetime"""
+    data = cache_manager.get_cached_data()
+    if not data:
+        return []
+
+    events = data.get('events', [])
+
+    # Convertir les strings ISO en objets datetime
+    for event in events:
+        for key in ['start_datetime', 'end_datetime']:
+            if key in event and isinstance(event[key], str):
+                try:
+                    from datetime import datetime
+                    event[key] = datetime.fromisoformat(event[key])
+                except ValueError:
+                    pass
+
+    return events
+
+def get_cached_room_schedules():
+    """Récupère les emplois du temps des salles depuis le cache"""
+    data = cache_manager.get_cached_data()
+    return data.get('room_schedules', {}) if data else {}
+
+def get_cached_rooms_data():
+    """Récupère les données des salles depuis le cache"""
+    data = cache_manager.get_cached_data()
+    return data.get('rooms_data', {}) if data else {}
+
+def get_cached_available_rooms():
+    """Récupère les salles disponibles depuis le cache"""
+    data = cache_manager.get_cached_data()
+    return data.get('available_rooms', []) if data else []
+
+def get_cache_stats():
+    """Récupère les statistiques du cache"""
+    data = cache_manager.get_cached_data()
+    if data and 'stats' in data:
+        stats = data['stats'].copy()
+        stats['cache_info'] = cache_manager.get_cache_info()
+        return stats
+    return {}
+
+def force_cache_refresh():
+    """Force le rafraîchissement du cache"""
+    return cache_manager.force_refresh()
+
+if __name__ == "__main__":
+    # Test du gestionnaire de cache
+    logging.basicConfig(level=logging.INFO)
+
+    print("🧪 Test du gestionnaire de cache ESIEE")
+
+    # Test de récupération des données
+    data = cache_manager.get_cached_data()
+    if data:
+        print(f"✅ Données récupérées: {data['stats']}")
+    else:
+        print("❌ Aucune donnée disponible")
+
+    # Afficher les infos du cache
+    cache_info = cache_manager.get_cache_info()
+    print(f"📊 Info cache: {cache_info}")
