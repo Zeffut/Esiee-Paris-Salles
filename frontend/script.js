@@ -1,148 +1,97 @@
+// =============================================================================
+// TRACKING DES RECHARGES (pour détecter les boucles)
+// =============================================================================
+const reloadCount = parseInt(sessionStorage.getItem('reloadCount') || '0');
+sessionStorage.setItem('reloadCount', (reloadCount + 1).toString());
 
+// Alert si trop de recharges en peu de temps (possible live reload actif)
+if (reloadCount > 5) {
+  console.warn('⚠️ Plus de 5 recharges détectés. Si vous utilisez Live Server, désactivez-le.');
+}
 
+// =============================================================================
+// POPUPS PERSONNALISÉS
+// =============================================================================
 
-// NETTOYAGE SÉLECTIF DES COOKIES - Conserver uniquement les cookies nécessaires
-(function() {
-  const CURRENT_VERSION = 'v2025-09-24-force-update';
-  const storedVersion = localStorage.getItem('esiee_app_version');
+// Fonction pour afficher un alert personnalisé
+function customAlert(message, title = 'Information') {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('customAlertOverlay');
+    const titleElement = document.getElementById('customAlertTitle');
+    const messageElement = document.getElementById('customAlertMessage');
+    const btn = document.getElementById('customAlertBtn');
 
-  // Cookies à CONSERVER (nécessaires au fonctionnement) - NOUVEAUX NOMS
-  const COOKIES_TO_KEEP = [
-    'g_state',                // Google Auth
-    'g_csrf_token',          // Google CSRF
-    'esiee_user_prefs',      // Préférences utilisateur (nouveau nom)
-    'esiee_auth_token',      // Token d'authentification (nouveau nom)
-    'esiee_theme',           // Thème choisi (nouveau nom)
-    'esiee_language',        // Langue (nouveau nom)
-    'esiee_app_version'      // Notre version (nouveau nom)
-  ];
+    titleElement.textContent = title;
+    messageElement.textContent = message;
+    overlay.classList.add('show');
 
-  function forceCleanAllOldCookies() {
-    console.log('🔥 NETTOYAGE FORCÉ - Suppression de TOUS les anciens cookies...');
+    const closeHandler = () => {
+      overlay.classList.remove('show');
+      btn.removeEventListener('click', closeHandler);
+      resolve();
+    };
 
-    // Liste des cookies suspects/problématiques (anciens noms + patterns)
-    const SUSPICIOUS_PATTERNS = [
-      'site_version',      // Ancien nom
-      'user_preferences',  // Ancien nom
-      'auth_token',        // Ancien nom
-      'theme',             // Ancien nom générique
-      'language',          // Ancien nom générique
-      'cache_',            // Tout ce qui commence par cache_
-      'old_',              // Tout ce qui commence par old_
-      'temp_',             // Tout ce qui commence par temp_
-      'app_'               // Tout ce qui commence par app_
-    ];
+    btn.addEventListener('click', closeHandler);
+  });
+}
 
-    const allCookies = document.cookie.split(';');
-    let cleanedCount = 0;
+// Fonction pour afficher un confirm personnalisé
+function customConfirm(message, title = 'Confirmation') {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('customConfirmOverlay');
+    const titleElement = document.getElementById('customConfirmTitle');
+    const messageElement = document.getElementById('customConfirmMessage');
+    const btnConfirm = document.getElementById('customConfirmBtn');
+    const btnCancel = document.getElementById('customConfirmCancel');
 
-    allCookies.forEach(cookie => {
-      const eqPos = cookie.indexOf('=');
-      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+    titleElement.textContent = title;
+    messageElement.textContent = message;
+    overlay.classList.add('show');
 
-      if (name) {
-        // Supprimer les cookies suspects OU très volumineux
-        const value = eqPos > -1 ? cookie.substr(eqPos + 1) : '';
-        const isLarge = value.length > 2000; // Plus de 2KB = suspect
-        const isSuspicious = SUSPICIOUS_PATTERNS.some(pattern =>
-          name.includes(pattern) || name.startsWith(pattern.replace('_', ''))
-        );
-        const isOldNaming = !name.startsWith('esiee_') && !name.startsWith('g_');
+    const confirmHandler = () => {
+      overlay.classList.remove('show');
+      btnConfirm.removeEventListener('click', confirmHandler);
+      btnCancel.removeEventListener('click', cancelHandler);
+      resolve(true);
+    };
 
-        if (isLarge || isSuspicious || isOldNaming) {
-          console.log(`🔥 Suppression forcée: ${name} (${value.length} chars) - ${isLarge ? 'VOLUMINEUX' : ''} ${isSuspicious ? 'SUSPECT' : ''} ${isOldNaming ? 'ANCIEN' : ''}`);
+    const cancelHandler = () => {
+      overlay.classList.remove('show');
+      btnConfirm.removeEventListener('click', confirmHandler);
+      btnCancel.removeEventListener('click', cancelHandler);
+      resolve(false);
+    };
 
-          // Supprimer agressivement
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname.split('.').slice(-2).join('.')}`;
+    btnConfirm.addEventListener('click', confirmHandler);
+    btnCancel.addEventListener('click', cancelHandler);
+  });
+}
 
-          cleanedCount++;
-        } else if (COOKIES_TO_KEEP.includes(name)) {
-          console.log(`✅ Conservé cookie essentiel: ${name} (${value.length} chars)`);
-        }
-      }
-    });
+// Rendre les fonctions disponibles globalement
+window.customAlert = customAlert;
+window.customConfirm = customConfirm;
 
-    console.log(`🔥 Nettoyage forcé terminé: ${cleanedCount} cookies supprimés`);
-    return cleanedCount;
-  }
+// =============================================================================
+// SERVICE WORKERS
+// =============================================================================
 
-  function cleanSelectiveCookies() {
-    console.log('🧹 Nettoyage sélectif des cookies...');
+// DÉSINSTALLATION DES SERVICE WORKERS - TEMPORAIREMENT DÉSACTIVÉ POUR DEBUG GOOGLE OAUTH
+// (async function() {
+//   if ('serviceWorker' in navigator) {
+//     try {
+//       const registrations = await navigator.serviceWorker.getRegistrations();
+//       for (let registration of registrations) {
+//         await registration.unregister();
+//         console.log('Service Worker désinscrit:', registration.scope);
+//       }
+//     } catch (error) {
+//       console.error('Erreur lors de la désinscription des service workers:', error);
+//     }
+//   }
+// })();
 
-    // D'abord le nettoyage forcé
-    const forceCleaned = forceCleanAllOldCookies();
-
-    // Ensuite analyser ce qui reste
-    const allCookies = document.cookie.split(';');
-    const cookiesInfo = [];
-
-    allCookies.forEach(cookie => {
-      const eqPos = cookie.indexOf('=');
-      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-      const value = eqPos > -1 ? cookie.substr(eqPos + 1) : '';
-
-      if (name) {
-        cookiesInfo.push({ name, value, size: value.length });
-      }
-    });
-
-    console.log('📊 Cookies restants après nettoyage:', cookiesInfo);
-    return { cleaned: forceCleaned, remaining: cookiesInfo };
-  }
-
-  function cleanOtherCaches() {
-    console.log('🧹 Nettoyage autres caches...');
-
-    // Vider cache API
-    if ('caches' in window) {
-      caches.keys().then(keys => {
-        console.log('🗑️ Suppression caches API:', keys);
-        keys.forEach(key => caches.delete(key));
-      });
-    }
-
-    // Nettoyer localStorage (sauf version) - NOUVEAUX NOMS
-    const currentVersion = localStorage.getItem('esiee_app_version');
-    const userPrefs = localStorage.getItem('esiee_user_prefs'); // Si tu en as
-    localStorage.clear();
-    if (currentVersion) localStorage.setItem('esiee_app_version', currentVersion);
-    if (userPrefs) localStorage.setItem('esiee_user_prefs', userPrefs);
-
-    // Vider sessionStorage
-    sessionStorage.clear();
-
-    console.log('✅ Autres caches nettoyés');
-  }
-
-  if (!storedVersion || storedVersion !== CURRENT_VERSION) {
-    console.log('🔄 Nouvelle version détectée, nettoyage sélectif...');
-
-    // Analyser et nettoyer
-    const cookiesInfo = cleanSelectiveCookies();
-    cleanOtherCaches();
-
-    // Sauvegarder nouvelle version
-    localStorage.setItem('esiee_app_version', CURRENT_VERSION);
-
-    // Afficher rapport
-    console.log('📋 Rapport de nettoyage:');
-    console.log(`- Cookies supprimés (forcé): ${cookiesInfo.cleaned}`);
-    console.log(`- Cookies restants: ${cookiesInfo.remaining.length}`);
-    console.log(`- Cookies autorisés: ${COOKIES_TO_KEEP.length}`);
-    console.log(`- Taille totale cookies restants: ${document.cookie.length} chars`);
-    console.log('🎯 Version forcée appliquée:', CURRENT_VERSION);
-
-    // Forcer rechargement avec cache-busting
-    setTimeout(() => {
-      window.location.href = window.location.href.split('?')[0] + '?_cb=' + Date.now();
-    }, 500);
-
-    return;
-  }
-})();
+// SYSTÈME DE NETTOYAGE DÉSACTIVÉ - Causait des boucles de rechargement
+// Pour nettoyer manuellement : ouvrir la console et taper localStorage.clear()
 
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -240,26 +189,39 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Configuration de l'API
-  // Utiliser HTTPS via tunnel FRP
-  const API_BASE_URL = 'https://api.zeffut.fr/api';
+  const API_BASE_URL = 'http://localhost:3001/api';
 
   // Fonction pour calculer le statut d'une salle en temps réel
   function calculateRoomStatus(roomNumber) {
     const schedule = roomSchedules[roomNumber];
-    if (!schedule || schedule.length === 0) {
-      return 'libre'; // Aucun événement = salle libre
-    }
-
     const now = new Date();
 
-    // Parcourir les événements pour voir si un cours est en cours
-    for (const event of schedule) {
-      const startTime = new Date(event.start);
-      const endTime = new Date(event.end);
+    // Vérifier d'abord les réservations actives
+    if (window.activeReservations && Array.isArray(window.activeReservations)) {
+      for (const reservation of window.activeReservations) {
+        if (reservation.room_number === roomNumber) {
+          const startTime = new Date(reservation.start_time);
+          const endTime = new Date(reservation.end_time);
 
-      // Vérifier si nous sommes dans la plage horaire du cours
-      if (startTime <= now && now < endTime) {
-        return 'occupé';
+          // Vérifier si la réservation est active maintenant
+          if (startTime <= now && now < endTime) {
+            return 'occupé';
+          }
+        }
+      }
+    }
+
+    // Puis vérifier les événements de l'emploi du temps
+    if (schedule && schedule.length > 0) {
+      // Parcourir les événements pour voir si un cours est en cours
+      for (const event of schedule) {
+        const startTime = new Date(event.start);
+        const endTime = new Date(event.end);
+
+        // Vérifier si nous sommes dans la plage horaire du cours
+        if (startTime <= now && now < endTime) {
+          return 'occupé';
+        }
       }
     }
 
@@ -368,8 +330,13 @@ document.addEventListener('DOMContentLoaded', function() {
     floors: ['Rez-de-chaussée', '1er étage', '2ème étage', '3ème étage', '4ème étage']
   };
 
+  // Variable pour stocker le numéro de salle actuel dans le modal
+  let currentModalRoomNumber = null;
+
   // Ouvrir le modal de détails d'une salle
   async function openRoomModal(roomNumber, roomStatus) {
+    currentModalRoomNumber = roomNumber;
+
     const room = roomData[roomNumber] || {
       name: `Salle ${roomNumber}`,
       board: 'Tableau blanc',
@@ -423,11 +390,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Afficher l'emploi du temps depuis le cache local
   function displayTodayScheduleFromCache(roomNumber) {
-    const schedule = roomSchedules[roomNumber];
-    if (!schedule || schedule.length === 0) {
-      displayTodaySchedule(null);
-      return;
-    }
+    const schedule = roomSchedules[roomNumber] || [];
 
     // Filtrer les événements d'aujourd'hui
     const now = new Date();
@@ -438,13 +401,45 @@ document.addEventListener('DOMContentLoaded', function() {
       return eventDate.toDateString() === today;
     });
 
-    // Convertir en format attendu par displayTodaySchedule
-    const formattedSchedule = {
-      [getDayName(now.getDay()).toLowerCase()]: todayEvents.map(event => ({
+    // Ajouter les réservations actives pour cette salle
+    const todayReservations = [];
+    if (window.activeReservations && Array.isArray(window.activeReservations)) {
+      for (const reservation of window.activeReservations) {
+        if (reservation.room_number === roomNumber) {
+          const reservationDate = new Date(reservation.start_time);
+          if (reservationDate.toDateString() === today) {
+            todayReservations.push({
+              start: new Date(reservation.start_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+              end: new Date(reservation.end_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+              course: `🔒 Réservation de ${reservation.user_name || 'Utilisateur'}`,
+              isReservation: true
+            });
+          }
+        }
+      }
+    }
+
+    // Combiner les événements et les réservations
+    const allEvents = [
+      ...todayEvents.map(event => ({
         start: new Date(event.start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         end: new Date(event.end).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        course: event.summary
-      }))
+        course: event.summary,
+        isReservation: false
+      })),
+      ...todayReservations
+    ];
+
+    // Trier par heure de début
+    allEvents.sort((a, b) => {
+      const timeA = a.start.split(':').map(Number);
+      const timeB = b.start.split(':').map(Number);
+      return (timeA[0] * 60 + timeA[1]) - (timeB[0] * 60 + timeB[1]);
+    });
+
+    // Convertir en format attendu par displayTodaySchedule
+    const formattedSchedule = {
+      [getDayName(now.getDay()).toLowerCase()]: allEvents
     };
 
     displayTodaySchedule(formattedSchedule);
@@ -714,6 +709,18 @@ document.addEventListener('DOMContentLoaded', function() {
   menuOverlay.addEventListener('click', closeMenu);
   roomModalClose.addEventListener('click', closeRoomModal);
   roomModal.addEventListener('click', closeRoomModalOverlay);
+
+  // Event listener pour le bouton de réservation dans le modal de salle
+  const roomModalReserveBtn = document.getElementById('roomModalReserveBtn');
+  if (roomModalReserveBtn) {
+    roomModalReserveBtn.addEventListener('click', () => {
+      if (currentModalRoomNumber) {
+        closeRoomModal();
+        openReservationModal(currentModalRoomNumber);
+      }
+    });
+  }
+
   filterBtn.addEventListener('click', openFilterModal);
   filterModalClose.addEventListener('click', closeFilterModal);
   filterModal.addEventListener('click', closeFilterModalOverlay);
@@ -757,11 +764,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initiateGoogleSignIn();
   });
 
-  // Event listener pour le bouton de connexion Apple (placeholder)
-  document.getElementById('appleLoginBtn').addEventListener('click', function(e) {
-    e.preventDefault();
-    showErrorMessage('Connexion Apple non disponible pour le moment');
-  });
 
   // Event listener pour le bouton de déconnexion
   document.getElementById('logoutBtn').addEventListener('click', function(e) {
@@ -779,14 +781,26 @@ document.addEventListener('DOMContentLoaded', function() {
   // Fonction pour charger les données depuis l'API
   async function loadRoomsFromAPI() {
     try {
-      const response = await fetch(`${API_BASE_URL}/rooms`);
-      if (response.ok) {
-        const data = await response.json();
+      // Charger les salles et les réservations actives en parallèle
+      const [roomsResponse, reservationsResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/rooms`),
+        fetch(`${API_BASE_URL}/reservations/active`)
+      ]);
+
+      if (roomsResponse.ok) {
+        const data = await roomsResponse.json();
+
+        // Charger les réservations actives si disponibles
+        if (reservationsResponse.ok) {
+          const reservationsData = await reservationsResponse.json();
+          if (reservationsData.success && reservationsData.reservations) {
+            // Stocker les réservations actives globalement
+            window.activeReservations = reservationsData.reservations;
+          }
+        }
 
         // Vérifier si l'API supporte le calcul côté client
         if (data.client_status_calculation && data.room_schedules) {
-          console.log(`🚀 API avec calcul côté client: ${Object.keys(data.room_schedules).length} salles chargées`);
-
           // Charger les emplois du temps
           roomSchedules = data.room_schedules;
 
@@ -806,11 +820,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
           // Calculer les statuts en temps réel côté client
           updateAllRoomStatuses();
-          console.log('✅ Statuts calculés côté client en temps réel');
 
         } else if (data.rooms_list && Array.isArray(data.rooms_list)) {
           // Fallback : ancien format avec statuts pré-calculés
-          console.log(`🚀 API classique: ${data.rooms_list.length} salles chargées`);
 
           roomData = {};
           roomStatuses = {};
@@ -837,7 +849,6 @@ document.addEventListener('DOMContentLoaded', function() {
         throw new Error('API non disponible');
       }
     } catch (error) {
-      console.error('Erreur API:', error);
       showAPIError();
       // Utiliser les données par défaut en cas d'erreur
       roomData = defaultRoomData;
@@ -892,50 +903,53 @@ document.addEventListener('DOMContentLoaded', function() {
     errorMessage.style.display = 'none';
   }
 
-  // Configuration Google OAuth
-  const GOOGLE_CLIENT_ID = '280602510509-ep76jc9na5ae6qbdmcfm7sria30c0acb.apps.googleusercontent.com'; // À remplacer par votre vrai Client ID
+  // ==============================
+  // GOOGLE AUTH - VERSION CORRIGÉE
+  // ==============================
 
-  // Variable pour stocker l'utilisateur connecté
+  // Client ID Google (configuré dans Google Cloud Console)
+  const GOOGLE_CLIENT_ID = '280602510509-ep76jc9na5ae6qbdmcfm7sria30c0acb.apps.googleusercontent.com';
+
+  // Utilisateur connecté et token de session
   let currentUser = null;
+  let authToken = null;
+  let isLoggingIn = false; // Protection contre les appels multiples
+  let googleAuthInitialized = false; // Protection contre les initialisations multiples
+  let lastShowLoggedInStateTime = 0; // Protection contre doubles appels showLoggedInState
 
-  // Initialisation de Google Sign-In
+  // Initialisation de Google Identity Services
   function initializeGoogleAuth() {
-
-    if (typeof google !== 'undefined' && google.accounts) {
-
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
       try {
-        // Initialiser Google Identity Services avec options de persistance
+        // Initialiser Google Identity Services
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleCredentialResponse,
-          auto_select: true, // Permet la sélection automatique pour les utilisateurs connus
+          auto_select: false,
           cancel_on_tap_outside: true,
-          use_fedcm_for_prompt: true // Utilise FedCM pour une meilleure UX
+          use_fedcm_for_prompt: true
         });
 
         // Vérifier si l'utilisateur est déjà connecté
         checkExistingAuth();
-
       } catch (error) {
+        console.error('Erreur lors de l\'initialisation Google Auth:', error);
       }
     } else {
-      // Réessayer après un délai si Google n'est pas encore chargé
+      // Google pas encore chargé → réessayer
       setTimeout(initializeGoogleAuth, 1000);
     }
   }
 
-  // Fonction pour déclencher la connexion Google (appelée par le bouton)
+  // Déclencher la connexion Google (appelé par le bouton #loginBtn)
   function initiateGoogleSignIn() {
-
     // Vérifier si l'API Google est chargée
     if (typeof google === 'undefined') {
       showErrorMessage('API Google non chargée. Veuillez actualiser la page.');
       return;
     }
 
-
     if (google.accounts && google.accounts.id) {
-
       // Utiliser le prompt pour la connexion
       google.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
@@ -946,7 +960,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (google.accounts && google.accounts.oauth2) {
       initiateOAuthFlow();
     } else {
-        showErrorMessage('Services Google non disponibles. Vérifiez votre connexion internet.');
+      showErrorMessage('Services Google non disponibles. Vérifiez votre connexion internet.');
     }
   }
 
@@ -978,38 +992,105 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       });
 
-      if (response.ok) {
-        const userInfo = await response.json();
-
-        // Simuler la structure du JWT pour compatibilité
-        currentUser = {
-          id: userInfo.id,
-          name: userInfo.name,
-          email: userInfo.email,
-          picture: userInfo.picture,
-          token: accessToken // Ce n'est pas un JWT mais ça fonctionne pour notre usage
-        };
-
-        // Sauvegarder et afficher avec timestamp
-        localStorage.setItem('user', JSON.stringify(currentUser));
-        localStorage.setItem('lastLoginTime', Date.now().toString());
-        showLoggedInState();
-
-      } else {
+      if (!response.ok) {
         throw new Error('Erreur lors de la récupération du profil');
       }
+
+      const userInfo = await response.json();
+
+      // Créer un pseudo-credential JWT pour le backend
+      // Le backend devra être modifié pour accepter ce format alternatif
+      const pseudoCredential = btoa(JSON.stringify({
+        sub: userInfo.id,
+        name: userInfo.name,
+        email: userInfo.email,
+        picture: userInfo.picture
+      }));
+
+      // Essayer d'authentifier avec le backend
+      try {
+        const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            credential: pseudoCredential,
+            oauth_token: accessToken
+          })
+        });
+
+        const result = await loginResponse.json();
+
+        if (result.success) {
+          currentUser = result.user;
+          authToken = result.session_token;
+
+          localStorage.setItem('user', JSON.stringify(currentUser));
+          localStorage.setItem('authToken', authToken);
+          localStorage.setItem('lastLoginTime', Date.now().toString());
+
+          showLoggedInState();
+          return;
+        }
+      } catch (backendError) {
+        console.warn('Backend non disponible, connexion locale uniquement:', backendError);
+      }
+
+      // Fallback : connexion locale
+      currentUser = {
+        id: userInfo.id,
+        name: userInfo.name,
+        email: userInfo.email,
+        picture: userInfo.picture,
+        token: accessToken
+      };
+      authToken = null;
+
+      localStorage.setItem('user', JSON.stringify(currentUser));
+      localStorage.setItem('lastLoginTime', Date.now().toString());
+      showLoggedInState();
+
     } catch (error) {
+      console.error('Erreur fetchUserInfoWithToken:', error);
       showErrorMessage('Erreur lors de la connexion');
     }
   }
 
-  // Gérer la réponse de connexion Google
-  function handleCredentialResponse(response) {
+  async function handleCredentialResponse(response) {
+    if (currentUser && localStorage.getItem('user')) return;
+    if (isLoggingIn) return;
+
+    isLoggingIn = true;
+
     try {
-      // Décoder le JWT token
       const userInfo = parseJwt(response.credential);
 
-      // Stocker les informations utilisateur
+      // Essayer d'authentifier avec le backend
+      try {
+        const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        });
+
+        const result = await loginResponse.json();
+
+        if (result.success) {
+          currentUser = result.user;
+          authToken = result.session_token;
+
+          localStorage.setItem('user', JSON.stringify(currentUser));
+          localStorage.setItem('authToken', authToken);
+          localStorage.setItem('lastLoginTime', Date.now().toString());
+
+          isLoggingIn = false;
+          showLoggedInState();
+          return;
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Backend non disponible, connexion locale:', backendError);
+      }
+
+      // Fallback: connexion locale sans backend
       currentUser = {
         id: userInfo.sub,
         name: userInfo.name,
@@ -1017,15 +1098,17 @@ document.addEventListener('DOMContentLoaded', function() {
         picture: userInfo.picture,
         token: response.credential
       };
+      authToken = null;
 
-      // Sauvegarder dans localStorage avec timestamp
       localStorage.setItem('user', JSON.stringify(currentUser));
       localStorage.setItem('lastLoginTime', Date.now().toString());
 
-      // Afficher l'interface utilisateur connecté
+      isLoggingIn = false;
       showLoggedInState();
 
     } catch (error) {
+      console.error('❌ Erreur handleCredentialResponse:', error);
+      isLoggingIn = false;
       showErrorMessage('Erreur lors de la connexion');
     }
   }
@@ -1066,53 +1149,92 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Vérifier l'authentification existante (version simplifiée)
-  function checkExistingAuth() {
+  // Variable pour éviter les appels multiples à checkExistingAuth
+  let authCheckInProgress = false;
+
+  async function checkExistingAuth() {
+    if (authCheckInProgress) return;
+
+    authCheckInProgress = true;
 
     const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('authToken');
     const lastLoginTime = localStorage.getItem('lastLoginTime');
 
-
-    // Si on a un utilisateur stocké, on le garde connecté (session persistante simple)
     if (storedUser) {
       try {
         currentUser = JSON.parse(storedUser);
+        authToken = storedToken;
 
-        // Vérification simple : si on a un utilisateur ET qu'il a été connecté récemment (7 jours max)
+        // Vérifier l'âge de la session (7 jours max)
         const now = Date.now();
-        const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000; // 7 jours
+        const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
 
         if (lastLoginTime) {
           const sessionAge = now - parseInt(lastLoginTime);
-
-
-          if (sessionAge < sevenDaysInMs) {
-            showLoggedInState();
-            return;
-          } else {
+          if (sessionAge >= sevenDaysInMs) {
+            authCheckInProgress = false;
             signOut();
             return;
           }
-        } else {
-          // Pas de timestamp, on connecte quand même mais on met à jour le timestamp
-          localStorage.setItem('lastLoginTime', Date.now().toString());
-          showLoggedInState();
-          return;
         }
 
+        // Vérifier le token backend s'il existe
+        if (authToken) {
+          try {
+            const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              currentUser = result.user;
+              localStorage.setItem('user', JSON.stringify(currentUser));
+              authCheckInProgress = false;
+              showLoggedInState();
+              return;
+            } else {
+              authCheckInProgress = false;
+              signOut();
+              return;
+            }
+          } catch (error) {
+            console.warn('⚠️ Impossible de vérifier le token backend:', error);
+          }
+        }
+
+        // Mode session locale
+        authCheckInProgress = false;
+        showLoggedInState();
+
       } catch (error) {
+        console.error('❌ Erreur lors de la vérification de la session:', error);
+        authCheckInProgress = false;
         signOut();
-        return;
       }
     } else {
+      authCheckInProgress = false;
     }
   }
 
 
-  // Afficher l'état connecté
   function showLoggedInState() {
+    const now = Date.now();
+    if (now - lastShowLoggedInStateTime < 1000) return;
+    lastShowLoggedInStateTime = now;
+
     const profileNotLogged = document.getElementById('profileNotLogged');
     const profileLogged = document.getElementById('profileLogged');
+
+    if (!profileNotLogged || !profileLogged) {
+      console.error('❌ Éléments de profil non trouvés');
+      return;
+    }
 
     // Masquer la page de connexion
     profileNotLogged.style.display = 'none';
@@ -1121,11 +1243,38 @@ document.addEventListener('DOMContentLoaded', function() {
     profileLogged.style.display = 'block';
 
     // Mettre à jour les informations utilisateur
-    document.getElementById('userName').textContent = currentUser.name;
-    document.getElementById('userEmail').textContent = currentUser.email;
-    document.getElementById('userAvatar').src = currentUser.picture;
-    document.getElementById('userAvatar').alt = `Avatar de ${currentUser.name}`;
+    const userNameEl = document.getElementById('userName');
+    const userEmailEl = document.getElementById('userEmail');
+    const userAvatarEl = document.getElementById('userAvatar');
 
+    if (userNameEl) userNameEl.textContent = currentUser.name || 'Utilisateur';
+    if (userEmailEl) userEmailEl.textContent = currentUser.email || '';
+
+    const userAvatarIcon = document.getElementById('userAvatarIcon');
+    if (userAvatarEl && currentUser.picture) {
+      userAvatarEl.src = currentUser.picture;
+      userAvatarEl.alt = `Avatar de ${currentUser.name}`;
+      userAvatarEl.style.display = 'block';
+      if (userAvatarIcon) userAvatarIcon.style.display = 'none';
+
+      userAvatarEl.onerror = function() {
+        this.style.display = 'none';
+        if (userAvatarIcon) userAvatarIcon.style.display = 'block';
+      };
+    } else {
+      if (userAvatarIcon) userAvatarIcon.style.display = 'block';
+      if (userAvatarEl) userAvatarEl.style.display = 'none';
+    }
+
+    if (!authToken) {
+      console.warn('⚠️ Mode dégradé : réservations non disponibles');
+    }
+
+    try {
+      updateReservationsDisplay();
+    } catch (error) {
+      console.error('❌ Erreur mise à jour réservations:', error);
+    }
   }
 
   // Afficher l'état déconnecté
@@ -1141,12 +1290,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
   }
 
-  // Fonction de déconnexion
-  function signOut() {
+  // Déconnexion
+  async function signOut() {
+    // Si on a un token backend, informer le serveur de la déconnexion
+    if (authToken) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (error) {
+        console.warn('Erreur lors de la déconnexion backend:', error);
+      }
+    }
+
     // Supprimer les données de localStorage
     localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
     localStorage.removeItem('lastLoginTime');
     currentUser = null;
+    authToken = null;
 
     // Déconnecter de Google (si disponible)
     if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
@@ -1155,7 +1321,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Afficher l'état déconnecté
     showLoggedOutState();
-
   }
 
   // Fonction pour afficher les messages d'erreur
@@ -1199,6 +1364,490 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // =============================================================================
+  // GESTION DES RÉSERVATIONS
+  // =============================================================================
+
+  // Fonction pour mettre à jour l'affichage des réservations
+  function updateReservationsDisplay() {
+    if (!currentUser || !currentUser.reservations) {
+      return;
+    }
+
+    const reservations = currentUser.reservations.history || [];
+    const activeReservations = reservations.filter(r => r.status === 'active' || r.status === 'upcoming');
+
+    // Mettre à jour le compteur
+    const countElement = document.getElementById('reservationsCount');
+    if (countElement) {
+      countElement.textContent = activeReservations.length;
+    }
+
+    // Mettre à jour le contenu
+    const contentElement = document.getElementById('reservationsContent');
+    const noReservationsElement = document.getElementById('noReservations');
+
+    if (!contentElement) return;
+
+    if (activeReservations.length === 0) {
+      // Afficher l'état vide
+      if (noReservationsElement) {
+        noReservationsElement.style.display = 'flex';
+      }
+      // Supprimer les cartes existantes
+      const existingCards = contentElement.querySelectorAll('.reservation-card');
+      existingCards.forEach(card => card.remove());
+      // Supprimer le message "plus de réservations"
+      const moreMessage = contentElement.querySelector('.more-reservations-message');
+      if (moreMessage) moreMessage.remove();
+    } else {
+      // Masquer l'état vide
+      if (noReservationsElement) {
+        noReservationsElement.style.display = 'none';
+      }
+
+      // Supprimer les cartes existantes
+      const existingCards = contentElement.querySelectorAll('.reservation-card');
+      existingCards.forEach(card => card.remove());
+      // Supprimer l'ancien message "plus de réservations"
+      const oldMoreMessage = contentElement.querySelector('.more-reservations-message');
+      if (oldMoreMessage) oldMoreMessage.remove();
+
+      // Limiter à 5 réservations maximum
+      const maxReservations = 5;
+      const displayedReservations = activeReservations.slice(0, maxReservations);
+      const remainingCount = activeReservations.length - maxReservations;
+
+      // Créer les cartes de réservation
+      displayedReservations.forEach(reservation => {
+        const card = createReservationCard(reservation);
+        contentElement.appendChild(card);
+      });
+
+      // Afficher un message s'il y a plus de 5 réservations
+      if (remainingCount > 0) {
+        const moreMessage = document.createElement('div');
+        moreMessage.className = 'more-reservations-message';
+        moreMessage.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>Et ${remainingCount} autre${remainingCount > 1 ? 's' : ''} réservation${remainingCount > 1 ? 's' : ''}</span>
+        `;
+        contentElement.appendChild(moreMessage);
+      }
+    }
+  }
+
+  // Fonction pour créer une carte de réservation
+  function createReservationCard(reservation) {
+    const card = document.createElement('div');
+    card.className = 'reservation-card';
+
+    const now = new Date();
+    const startTime = new Date(reservation.start_time);
+    const endTime = new Date(reservation.end_time);
+
+    // Déterminer le statut
+    let status = 'upcoming';
+    let statusText = 'À venir';
+
+    if (now >= startTime && now <= endTime) {
+      status = 'active';
+      statusText = 'En cours';
+    } else if (now > endTime) {
+      status = 'past';
+      statusText = 'Terminée';
+    }
+
+    // Formater les dates
+    const options = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    };
+    const dateStr = startTime.toLocaleDateString('fr-FR', options);
+    const timeStr = `${startTime.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})} - ${endTime.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})}`;
+
+    card.innerHTML = `
+      <div class="reservation-header">
+        <h4 class="reservation-room">Salle ${reservation.room_number}</h4>
+        <span class="reservation-status ${status}">${statusText}</span>
+      </div>
+      <div class="reservation-details">
+        <div class="reservation-time">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span>${dateStr}</span>
+        </div>
+        <div class="reservation-time">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+            <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2"/>
+            <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2"/>
+            <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span>${timeStr}</span>
+        </div>
+      </div>
+      ${status !== 'past' ? `
+        <div class="reservation-actions">
+          <button class="reservation-btn cancel" onclick="cancelReservation('${reservation.id}')">
+            Annuler
+          </button>
+        </div>
+      ` : ''}
+    `;
+
+    return card;
+  }
+
+  // Fonction pour afficher les détails d'une réservation
+  function viewReservationDetails(reservationId) {
+    console.log('Affichage des détails de la réservation:', reservationId);
+    // TODO: Implémenter modal de détails
+  }
+
+  // Fonction pour annuler une réservation
+  async function cancelReservation(reservationId) {
+    const confirmed = await customConfirm('Êtes-vous sûr de vouloir annuler cette réservation ?', 'Annuler la réservation');
+    if (!confirmed) {
+      return;
+    }
+
+    // Vérifier que l'utilisateur a un token
+    if (!authToken) {
+      // Tenter de récupérer le token depuis localStorage
+      const storedToken = localStorage.getItem('authToken');
+      if (storedToken) {
+        authToken = storedToken;
+      } else {
+        await customAlert('Session expirée. Veuillez vous reconnecter.', 'Session expirée');
+        signOut();
+        return;
+      }
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/reservations/${reservationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      // Vérifier si le token est invalide
+      if (response.status === 401 || response.status === 403) {
+        await customAlert('Session expirée. Veuillez vous reconnecter.', 'Session expirée');
+        signOut();
+        return;
+      }
+
+      if (data.success) {
+        // Mettre à jour les réservations localement
+        if (currentUser && currentUser.reservations) {
+          currentUser.reservations.history = data.reservations;
+          currentUser.reservations.total = data.reservations.length;
+          currentUser.reservations.active = data.reservations.filter(r => r.status === 'active' || r.status === 'upcoming').length;
+        }
+
+        // Recharger les réservations actives pour mettre à jour les statuts des salles
+        try {
+          const reservationsResponse = await fetch(`${API_BASE_URL}/reservations/active`);
+          if (reservationsResponse.ok) {
+            const reservationsData = await reservationsResponse.json();
+            if (reservationsData.success) {
+              window.activeReservations = reservationsData.reservations;
+              updateAllRoomStatuses();
+              renderRooms();
+            }
+          }
+        } catch (error) {
+          console.error('Erreur lors du rechargement des réservations actives:', error);
+        }
+
+        // Rafraîchir l'affichage
+        updateReservationsDisplay();
+      } else {
+        await customAlert(data.error || 'Erreur lors de l\'annulation de la réservation', 'Erreur');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation:', error);
+      await customAlert('Erreur lors de l\'annulation de la réservation', 'Erreur');
+    }
+  }
+
+  // Rendre les fonctions disponibles globalement
+  window.viewReservationDetails = viewReservationDetails;
+  window.cancelReservation = cancelReservation;
+
+  // =============================================================================
+  // SYSTÈME DE RÉSERVATION
+  // =============================================================================
+
+  let selectedRoomNumber = null;
+
+  // Fonction pour ouvrir le modal de réservation
+  async function openReservationModal(roomNumber) {
+    // Vérifier si l'utilisateur est connecté
+    if (!currentUser) {
+      await customAlert('Vous devez être connecté pour réserver une salle', 'Connexion requise');
+      return;
+    }
+
+    // Vérifier si l'utilisateur a un token backend (nécessaire pour les réservations)
+    if (!authToken) {
+      await customAlert(
+        'Le système de réservation nécessite une connexion au serveur. Veuillez vous reconnecter.',
+        'Connexion au serveur requise'
+      );
+      // Déconnecter et forcer une nouvelle connexion
+      signOut();
+      return;
+    }
+
+    // Vérifier si l'utilisateur a déjà une réservation active (non terminée)
+    const now = new Date();
+    const activeReservations = currentUser?.reservations?.history?.filter(r => {
+      if (r.status === 'active' || r.status === 'upcoming') {
+        const endTime = new Date(r.end_time);
+        return endTime > now; // Vérifier que l'heure de fin n'est pas passée
+      }
+      return false;
+    }) || [];
+
+    if (activeReservations.length > 0) {
+      await customAlert('Vous avez déjà une réservation active. Annulez-la avant d\'en créer une nouvelle.', 'Réservation existante');
+      return;
+    }
+
+    selectedRoomNumber = roomNumber;
+    const modal = document.getElementById('reservationModal');
+    const modalTitle = document.getElementById('reservationModalTitle');
+
+    modalTitle.textContent = `Réserver la salle ${roomNumber}`;
+
+    // Initialiser le formulaire
+    initializeReservationForm(roomNumber);
+
+    // Ouvrir le modal
+    modal.classList.add('open');
+    document.body.classList.add('modal-open');
+  }
+
+  // Fonction pour initialiser le formulaire de réservation
+  function initializeReservationForm(roomNumber) {
+    const timeSlotSelect = document.getElementById('reservationTimeSlot');
+
+    // Générer les créneaux horaires disponibles (dans les 2h à venir uniquement)
+    generateAvailableTimeSlots(roomNumber, timeSlotSelect);
+  }
+
+  // Fonction pour générer les créneaux horaires disponibles (dans les 2h à venir)
+  function generateAvailableTimeSlots(roomNumber, selectElement) {
+    selectElement.innerHTML = '<option value="">Sélectionnez un créneau</option>';
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    // Commencer à l'heure actuelle (pas la suivante)
+    let startHour = currentHour;
+
+    // Limiter aux 2 heures à venir (incluant l'heure actuelle)
+    const maxHour = Math.min(startHour + 2, 23); // Maximum 23h
+
+    // Récupérer l'emploi du temps de la salle
+    const schedule = roomSchedules[roomNumber] || [];
+
+    let hasAvailableSlots = false;
+
+    // Générer les créneaux
+    for (let hour = startHour; hour < maxHour; hour++) {
+      const timeStr = `${String(hour).padStart(2, '0')}:00`;
+      const endTimeStr = `${String(hour + 1).padStart(2, '0')}:00`;
+
+      // Vérifier si le créneau est disponible
+      const isAvailable = !isTimeSlotOccupied(schedule, timeStr, endTimeStr);
+
+      const option = document.createElement('option');
+      option.value = `${timeStr}-${endTimeStr}`;
+
+      // Indiquer si c'est le créneau actuel
+      const isCurrent = hour === currentHour;
+      option.textContent = `${timeStr} - ${endTimeStr}${isCurrent ? ' (Maintenant)' : ''}${!isAvailable ? ' (Occupé)' : ''}`;
+      option.disabled = !isAvailable;
+
+      selectElement.appendChild(option);
+
+      if (isAvailable) {
+        hasAvailableSlots = true;
+      }
+    }
+
+    // Si aucun créneau n'est disponible
+    if (!hasAvailableSlots) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'Aucun créneau disponible';
+      option.disabled = true;
+      selectElement.appendChild(option);
+    }
+  }
+
+  // Fonction pour vérifier si un créneau est occupé
+  function isTimeSlotOccupied(schedule, startTime, endTime) {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+
+    for (const event of schedule) {
+      const [eventStartHour, eventStartMin] = event.start.split(':').map(Number);
+      const [eventEndHour, eventEndMin] = event.end.split(':').map(Number);
+
+      // Vérifier le chevauchement
+      const requestStart = startHour * 60 + startMin;
+      const requestEnd = endHour * 60 + endMin;
+      const eventStart = eventStartHour * 60 + eventStartMin;
+      const eventEnd = eventEndHour * 60 + eventEndMin;
+
+      if (requestStart < eventEnd && requestEnd > eventStart) {
+        return true; // Chevauchement détecté
+      }
+    }
+
+    return false;
+  }
+
+  // Gérer la fermeture du modal de réservation
+  const reservationModal = document.getElementById('reservationModal');
+  const reservationModalClose = document.getElementById('reservationModalClose');
+  const cancelReservationBtn = document.getElementById('cancelReservation');
+
+  if (reservationModalClose) {
+    reservationModalClose.addEventListener('click', () => {
+      reservationModal.classList.remove('open');
+      document.body.classList.remove('modal-open');
+      document.getElementById('reservationForm').reset();
+    });
+  }
+
+  if (cancelReservationBtn) {
+    cancelReservationBtn.addEventListener('click', () => {
+      reservationModal.classList.remove('open');
+      document.body.classList.remove('modal-open');
+      document.getElementById('reservationForm').reset();
+    });
+  }
+
+  // Gérer la soumission du formulaire
+  const reservationForm = document.getElementById('reservationForm');
+  if (reservationForm) {
+    reservationForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const timeSlot = document.getElementById('reservationTimeSlot').value;
+
+      if (!timeSlot) {
+        await customAlert('Veuillez sélectionner un créneau', 'Créneau manquant');
+        return;
+      }
+
+      // Extraire l'heure de début et de fin du créneau
+      const [startTime, endTime] = timeSlot.split('-');
+
+      // Vérifier que l'utilisateur a un token
+      if (!authToken) {
+        // Tenter de récupérer le token depuis localStorage
+        const storedToken = localStorage.getItem('authToken');
+        if (storedToken) {
+          authToken = storedToken;
+        } else {
+          await customAlert('Session expirée. Veuillez vous reconnecter.', 'Session expirée');
+          signOut();
+          return;
+        }
+      }
+
+      // La date est toujours aujourd'hui
+      const today = new Date();
+      const date = today.toISOString().split('T')[0];
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/reservations`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            room_number: selectedRoomNumber,
+            date: date,
+            start_time: startTime,
+            end_time: endTime
+          })
+        });
+
+        const data = await response.json();
+
+        // Vérifier si le token est invalide
+        if (response.status === 401 || response.status === 403) {
+          await customAlert('Session expirée. Veuillez vous reconnecter.', 'Session expirée');
+          signOut();
+          return;
+        }
+
+        if (data.success) {
+          // Mettre à jour les réservations localement
+          if (currentUser && currentUser.reservations) {
+            currentUser.reservations.history = data.reservations;
+            currentUser.reservations.total = data.reservations.length;
+            currentUser.reservations.active = data.reservations.filter(r => r.status === 'active' || r.status === 'upcoming').length;
+          }
+
+          // Recharger les réservations actives pour mettre à jour les statuts des salles
+          try {
+            const reservationsResponse = await fetch(`${API_BASE_URL}/reservations/active`);
+            if (reservationsResponse.ok) {
+              const reservationsData = await reservationsResponse.json();
+              if (reservationsData.success) {
+                window.activeReservations = reservationsData.reservations;
+                updateAllRoomStatuses();
+                renderRooms();
+              }
+            }
+          } catch (error) {
+            console.error('Erreur lors du rechargement des réservations actives:', error);
+          }
+
+          // Fermer le modal
+          reservationModal.classList.remove('open');
+          document.body.classList.remove('modal-open');
+          reservationForm.reset();
+
+          // Rafraîchir l'affichage des réservations
+          updateReservationsDisplay();
+
+          await customAlert('Réservation confirmée !', 'Succès');
+        } else {
+          await customAlert(data.error || 'Erreur lors de la réservation', 'Erreur');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la réservation:', error);
+        await customAlert('Erreur lors de la réservation', 'Erreur');
+      }
+    });
+  }
+
+  // Rendre la fonction disponible globalement
+  window.openReservationModal = openReservationModal;
+
   // Fonction pour afficher les salles dans le DOM
   function renderRooms() {
     const grid = document.getElementById('roomsGrid');
@@ -1216,7 +1865,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="room-state">${status}</div>
       `;
 
-      // Ajouter l'event listener pour ouvrir le modal
+      // Ajouter l'event listener pour ouvrir le modal de détails
       card.addEventListener('click', function() {
         openRoomModal(roomNumber, status);
       });
@@ -1255,8 +1904,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialiser l'état
   handleScroll();
 
-  // Synchroniser les filtres au chargement
-  document.addEventListener('DOMContentLoaded', initializeFilters);
+  // Synchroniser les filtres au chargement (appel direct au lieu d'un event listener)
+  initializeFilters();
 
   // Fonction pour démarrer la mise à jour temps réel
   function startRealTimeUpdates() {
@@ -1271,7 +1920,6 @@ document.addEventListener('DOMContentLoaded', function() {
         for (const roomNumber in roomStatuses) {
           if (oldStatuses[roomNumber] !== roomStatuses[roomNumber]) {
             hasChanged = true;
-            console.log(`🔄 Statut changé pour salle ${roomNumber}: ${oldStatuses[roomNumber]} → ${roomStatuses[roomNumber]}`);
           }
         }
 
@@ -1293,148 +1941,4 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialiser l'authentification Google
   initializeGoogleAuth();
 
-  // Fonctions de debug pour analyser les cookies
-  window.debugAnalyzeCookies = function() {
-    console.log('🔍 ANALYSE COMPLÈTE DES COOKIES');
-    console.log('================================');
-
-    const cookies = document.cookie.split(';');
-    let totalSize = 0;
-    const cookieDetails = [];
-
-    cookies.forEach(cookie => {
-      const eqPos = cookie.indexOf('=');
-      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-      const value = eqPos > -1 ? cookie.substr(eqPos + 1) : '';
-
-      if (name) {
-        const size = value.length;
-        totalSize += size;
-        cookieDetails.push({ name, size, value: value.substring(0, 100) + (size > 100 ? '...' : '') });
-
-        if (size > 1000) {
-          console.warn(`🚨 Cookie volumineux: ${name} (${size} chars)`);
-        }
-      }
-    });
-
-    console.table(cookieDetails);
-    console.log(`📊 Total: ${cookies.length} cookies, ${totalSize} chars`);
-    console.log('🧹 Pour nettoyer: window.debugCleanCookies()');
-
-    return cookieDetails;
-  };
-
-  window.debugCleanCookies = function() {
-    console.log('🧹 NETTOYAGE MANUEL DES COOKIES');
-    console.log('===============================');
-
-    const cookies = document.cookie.split(';');
-    cookies.forEach(cookie => {
-      const eqPos = cookie.indexOf('=');
-      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-
-      if (name) {
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${window.location.hostname}`;
-        console.log(`🗑️ Supprimé: ${name}`);
-      }
-    });
-
-    localStorage.clear();
-    sessionStorage.clear();
-
-    console.log('✅ Nettoyage terminé - Rechargez la page');
-  };
-
-  console.log('🛠️ Fonctions debug disponibles:');
-  console.log('  - window.debugAnalyzeCookies() : Analyser les cookies');
-  console.log('  - window.debugCleanCookies() : Nettoyer tous les cookies');
-  console.log('  - window.debugRoomStatus(roomNumber) : Tester le calcul de statut d\'une salle');
-  console.log('  - window.debugAllStatuses() : Afficher tous les statuts calculés');
-
-  // Fonction de debug pour tester le calcul de statut d'une salle
-  window.debugRoomStatus = function(roomNumber) {
-    console.log(`🔍 DEBUG STATUT SALLE ${roomNumber}`);
-    console.log('================================');
-
-    const schedule = roomSchedules[roomNumber];
-    if (!schedule) {
-      console.log('❌ Aucun emploi du temps trouvé pour cette salle');
-      return;
-    }
-
-    console.log(`📅 Emploi du temps (${schedule.length} événements):`);
-    const now = new Date();
-    console.log(`🕒 Heure actuelle: ${now.toLocaleString('fr-FR')}`);
-
-    schedule.forEach((event, index) => {
-      const startTime = new Date(event.start);
-      const endTime = new Date(event.end);
-      const isCurrentEvent = startTime <= now && now < endTime;
-      const eventStatus = isCurrentEvent ? '🔴 EN COURS' : (startTime > now ? '⏰ À VENIR' : '✅ TERMINÉ');
-
-      console.log(`  ${index + 1}. ${event.summary}`);
-      console.log(`     📍 ${startTime.toLocaleString('fr-FR')} → ${endTime.toLocaleString('fr-FR')}`);
-      console.log(`     ${eventStatus}`);
-    });
-
-    const calculatedStatus = calculateRoomStatus(roomNumber);
-    const currentCourse = getCurrentCourse(roomNumber);
-    const nextCourse = getNextCourse(roomNumber);
-
-    console.log(`\n📊 RÉSULTAT:`);
-    console.log(`   Statut calculé: ${calculatedStatus}`);
-
-    if (currentCourse) {
-      console.log(`   🔴 Cours en cours: ${currentCourse.summary}`);
-      console.log(`      Fin prévue: ${currentCourse.end.toLocaleTimeString('fr-FR')}`);
-    }
-
-    if (nextCourse) {
-      console.log(`   ⏰ Prochain cours: ${nextCourse.summary}`);
-      console.log(`      Début: ${nextCourse.start.toLocaleTimeString('fr-FR')}`);
-    }
-
-    return {
-      status: calculatedStatus,
-      currentCourse,
-      nextCourse,
-      totalEvents: schedule.length
-    };
-  };
-
-  // Fonction de debug pour afficher tous les statuts
-  window.debugAllStatuses = function() {
-    console.log('🔍 DEBUG TOUS LES STATUTS');
-    console.log('=========================');
-
-    const now = new Date();
-    console.log(`🕒 Heure: ${now.toLocaleString('fr-FR')}`);
-
-    let occupiedCount = 0;
-    let freeCount = 0;
-
-    for (const roomNumber in roomSchedules) {
-      const status = calculateRoomStatus(roomNumber);
-      const icon = status === 'occupé' ? '🔴' : '🟢';
-      console.log(`${icon} Salle ${roomNumber}: ${status}`);
-
-      if (status === 'occupé') {
-        occupiedCount++;
-        const currentCourse = getCurrentCourse(roomNumber);
-        if (currentCourse) {
-          console.log(`    📚 ${currentCourse.summary} (fin: ${currentCourse.end.toLocaleTimeString('fr-FR')})`);
-        }
-      } else {
-        freeCount++;
-      }
-    }
-
-    console.log(`\n📊 RÉSUMÉ:`);
-    console.log(`   🔴 ${occupiedCount} salles occupées`);
-    console.log(`   🟢 ${freeCount} salles libres`);
-    console.log(`   📈 Taux d'occupation: ${Math.round((occupiedCount / (occupiedCount + freeCount)) * 100)}%`);
-  };
 });

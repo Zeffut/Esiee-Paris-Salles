@@ -1,16 +1,43 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
+import requests
+import threading
+from collections import defaultdict
 from cache_manager import (
     get_cached_events, get_cached_room_schedules, get_cached_rooms_data,
     get_cached_available_rooms, get_cache_stats, force_cache_refresh,
     cache_manager
 )
 from events_api import get_events_next_week, get_events_for_room, get_available_rooms_today
+from user_manager import user_manager
 
 app = Flask(__name__)
-CORS(app)  # Permettre les requêtes cross-origin depuis le frontend
+CORS(app, supports_credentials=True, origins=['http://localhost:8000', 'http://localhost:5500', 'https://esiee.zeffut.fr'])  # Permettre les requêtes cross-origin avec credentials
 
+# Verrou global pour éviter les race conditions sur les réservations
+reservation_lock = threading.Lock()
+
+# Rate limiting - Dictionnaire pour tracker les requêtes par IP
+rate_limit_storage = defaultdict(list)
+rate_limit_lock = threading.Lock()
+
+
+def get_session_token():
+    """
+    Récupère le token de session depuis les cookies ou le header Authorization
+    """
+    # D'abord essayer depuis les cookies
+    token = request.cookies.get('esiee_auth_token')
+    if token:
+        return token
+
+    # Sinon essayer depuis le header Authorization (format: "Bearer <token>")
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        return auth_header[7:]  # Enlever "Bearer "
+
+    return None
 
 
 def get_room_schedule_from_cache(room_number, week_offset=0):
@@ -734,6 +761,648 @@ def init_cache_if_needed():
         print(f"❌ Erreur lors de l'initialisation du cache: {e}")
         return None
 
+# =============================================================================
+# ENDPOINTS D'AUTHENTIFICATION ET GESTION DES UTILISATEURS
+# =============================================================================
+
+def verify_google_token(id_token: str) -> dict:
+    """
+    Vérifier un token Google ID et récupérer les infos utilisateur
+    """
+    try:
+        # Vérification via l'API Google uniquement - pas de faux JWT acceptés
+        response = requests.get(
+            f'https://oauth2.googleapis.com/tokeninfo?id_token={id_token}',
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Token Google invalide, status: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Erreur lors de la vérification du token Google: {e}")
+        return None
+
+def get_current_user_from_request():
+    """
+    Récupérer l'utilisateur actuel depuis la requête (session token)
+    """
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return None
+
+    session_token = auth_header[7:]  # Retirer "Bearer "
+    return user_manager.validate_session(session_token)
+
+def csrf_protected(f):
+    """
+    Décorateur pour protéger les endpoints contre les attaques CSRF
+    Vérifie que le token CSRF est présent et valide
+    """
+    from functools import wraps
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Récupérer le token de session
+        session_token = request.cookies.get('esiee_auth_token')
+        if not session_token:
+            return jsonify({
+                'success': False,
+                'error': 'Session manquante'
+            }), 401
+
+        # Récupérer le token CSRF depuis le header
+        csrf_token = request.headers.get('X-CSRF-Token')
+        if not csrf_token:
+            return jsonify({
+                'success': False,
+                'error': 'Token CSRF manquant'
+            }), 403
+
+        # Valider le token CSRF
+        if not user_manager.validate_csrf_token(session_token, csrf_token):
+            return jsonify({
+                'success': False,
+                'error': 'Token CSRF invalide'
+            }), 403
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+def rate_limit(max_requests=100, window_seconds=3600):
+    """
+    Décorateur pour limiter le nombre de requêtes par IP
+    Par défaut: 100 requêtes par heure
+    """
+    from functools import wraps
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Récupérer l'IP du client
+            client_ip = request.remote_addr
+            if request.headers.get('X-Forwarded-For'):
+                client_ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+
+            current_time = datetime.now()
+
+            with rate_limit_lock:
+                # Nettoyer les anciennes requêtes
+                rate_limit_storage[client_ip] = [
+                    req_time for req_time in rate_limit_storage[client_ip]
+                    if current_time - req_time < timedelta(seconds=window_seconds)
+                ]
+
+                # Vérifier si la limite est atteinte
+                if len(rate_limit_storage[client_ip]) >= max_requests:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Trop de requêtes. Veuillez réessayer plus tard.'
+                    }), 429
+
+                # Ajouter la requête actuelle
+                rate_limit_storage[client_ip].append(current_time)
+
+            return f(*args, **kwargs)
+
+        return decorated_function
+    return decorator
+
+@app.route('/api/auth/login', methods=['POST'])
+def auth_login():
+    """
+    Connexion utilisateur via Google OAuth
+    """
+    try:
+        data = request.get_json()
+        if not data or 'credential' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Token Google manquant'
+            }), 400
+
+        # Vérifier le token Google
+        google_user_info = verify_google_token(data['credential'])
+        if not google_user_info:
+            return jsonify({
+                'success': False,
+                'error': 'Token Google invalide'
+            }), 401
+
+        # Créer ou mettre à jour l'utilisateur
+        try:
+            user = user_manager.create_or_update_user(google_user_info)
+        except ValueError as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 403
+
+        # Créer une session
+        session_token = user_manager.create_session(user['user_id'])
+
+        # Nettoyer les sessions expirées
+        user_manager.cleanup_expired_sessions()
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'user_id': user['user_id'],
+                'email': user['email'],
+                'name': user['name'],
+                'picture': user['picture'],
+                'role': user['role'],
+                'preferences': user['preferences'],
+                'reservations': user.get('reservations', {
+                    'total': 0,
+                    'active': 0,
+                    'history': []
+                })
+            },
+            'session_token': session_token,
+            'expires_in': 168 * 3600  # 7 jours en secondes
+        })
+
+    except Exception as e:
+        print(f"Erreur lors de la connexion: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/auth/logout', methods=['POST'])
+def auth_logout():
+    """
+    Déconnexion utilisateur
+    """
+    try:
+        user = get_current_user_from_request()
+        if not user:
+            return jsonify({'success': True})  # Déjà déconnecté
+
+        # Invalider la session
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            session_token = auth_header[7:]
+            user_manager.invalidate_session(session_token)
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        print(f"Erreur lors de la déconnexion: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/auth/verify', methods=['GET'])
+def auth_verify():
+    """
+    Vérifier la session actuelle
+    """
+    try:
+        user = get_current_user_from_request()
+        if not user:
+            return jsonify({
+                'success': False,
+                'error': 'Session invalide ou expirée'
+            }), 401
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'user_id': user['user_id'],
+                'email': user['email'],
+                'name': user['name'],
+                'picture': user['picture'],
+                'role': user['role'],
+                'preferences': user['preferences'],
+                'reservations': user.get('reservations', {
+                    'total': 0,
+                    'active': 0,
+                    'history': []
+                })
+            }
+        })
+
+    except Exception as e:
+        print(f"Erreur lors de la vérification: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/auth/profile', methods=['GET', 'PUT'])
+def auth_profile():
+    """
+    Récupérer ou mettre à jour le profil utilisateur
+    """
+    try:
+        user = get_current_user_from_request()
+        if not user:
+            return jsonify({
+                'success': False,
+                'error': 'Authentification requise'
+            }), 401
+
+        if request.method == 'GET':
+            return jsonify({
+                'success': True,
+                'user': user
+            })
+
+        elif request.method == 'PUT':
+            data = request.get_json()
+            if not data:
+                return jsonify({
+                    'success': False,
+                    'error': 'Données manquantes'
+                }), 400
+
+            # Mettre à jour les préférences utilisateur
+            if 'preferences' in data:
+                user['preferences'].update(data['preferences'])
+
+            # Sauvegarder les modifications
+            user_manager.users_data['users'][user['user_id']] = user
+            user_manager._save_users()
+
+            return jsonify({
+                'success': True,
+                'user': user
+            })
+
+    except Exception as e:
+        print(f"Erreur lors de la gestion du profil: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/admin/users', methods=['GET'])
+def admin_get_users():
+    """
+    Liste des utilisateurs (admin uniquement)
+    """
+    try:
+        user = get_current_user_from_request()
+        if not user or user.get('role') != 'admin':
+            return jsonify({
+                'success': False,
+                'error': 'Accès administrateur requis'
+            }), 403
+
+        # Nettoyer les sessions expirées
+        user_manager.cleanup_expired_sessions()
+
+        # Récupérer les statistiques
+        stats = user_manager.get_user_stats()
+
+        # Liste des utilisateurs (sans données sensibles)
+        users_list = []
+        for user_data in user_manager.users_data['users'].values():
+            users_list.append({
+                'user_id': user_data['user_id'],
+                'email': user_data['email'],
+                'name': user_data['name'],
+                'role': user_data['role'],
+                'status': user_data['status'],
+                'last_login': user_data['last_login'],
+                'login_count': user_data['login_count'],
+                'created_at': user_data['created_at']
+            })
+
+        return jsonify({
+            'success': True,
+            'users': users_list,
+            'stats': stats
+        })
+
+    except Exception as e:
+        print(f"Erreur lors de la récupération des utilisateurs: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/admin/whitelist', methods=['GET', 'POST', 'DELETE'])
+def admin_whitelist():
+    """
+    Gestion de la whitelist des emails (admin uniquement)
+    """
+    try:
+        user = get_current_user_from_request()
+        if not user or user.get('role') != 'admin':
+            return jsonify({
+                'success': False,
+                'error': 'Accès administrateur requis'
+            }), 403
+
+        if request.method == 'GET':
+            return jsonify({
+                'success': True,
+                'whitelist': user_manager.email_whitelist
+            })
+
+        elif request.method == 'POST':
+            data = request.get_json()
+            if not data or 'email' not in data:
+                return jsonify({
+                    'success': False,
+                    'error': 'Email manquant'
+                }), 400
+
+            success = user_manager.add_email_to_whitelist(data['email'])
+            return jsonify({
+                'success': success,
+                'whitelist': user_manager.email_whitelist
+            })
+
+        elif request.method == 'DELETE':
+            data = request.get_json()
+            if not data or 'email' not in data:
+                return jsonify({
+                    'success': False,
+                    'error': 'Email manquant'
+                }), 400
+
+            success = user_manager.remove_email_from_whitelist(data['email'])
+            return jsonify({
+                'success': success,
+                'whitelist': user_manager.email_whitelist
+            })
+
+    except Exception as e:
+        print(f"Erreur lors de la gestion de la whitelist: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/reservations', methods=['POST'])
+def create_reservation():
+    """Créer une nouvelle réservation"""
+    try:
+        # Récupérer le token de session (cookies ou header)
+        session_token = get_session_token()
+
+        if not session_token:
+            return jsonify({
+                'success': False,
+                'error': 'Non authentifié'
+            }), 401
+
+        # Valider la session
+        user = user_manager.validate_session(session_token)
+
+        if not user:
+            return jsonify({
+                'success': False,
+                'error': 'Session invalide'
+            }), 401
+
+        user_id = user['user_id']
+
+        # Récupérer les données de la requête
+        data = request.get_json()
+        room_number = data.get('room_number')
+        date = data.get('date')
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+
+        if not all([room_number, date, start_time, end_time]):
+            return jsonify({
+                'success': False,
+                'error': 'Données manquantes'
+            }), 400
+
+        # Vérifier que la réservation est dans les 2 heures à venir
+        from datetime import datetime, timedelta
+        now = datetime.now()
+
+        # Vérifier que l'utilisateur n'a pas déjà une réservation active (non terminée)
+        reservations = user.get('reservations', {}).get('history', [])
+        active_reservations = []
+        for r in reservations:
+            if r['status'] in ['active', 'upcoming']:
+                # Vérifier que la réservation n'est pas terminée
+                reservation_end = datetime.fromisoformat(r['end_time'])
+                if reservation_end > now:
+                    active_reservations.append(r)
+
+        if len(active_reservations) > 0:
+            return jsonify({
+                'success': False,
+                'error': 'Vous avez déjà une réservation active'
+            }), 400
+        reservation_datetime = datetime.fromisoformat(f"{date}T{start_time}:00")
+        reservation_end_datetime = datetime.fromisoformat(f"{date}T{end_time}:00")
+
+        # Calculer la différence en heures par rapport au début de la réservation
+        time_diff = (reservation_datetime - now).total_seconds() / 3600
+
+        # Vérifier si la fin de la réservation est dans le futur (permet de réserver le créneau actuel)
+        end_time_diff = (reservation_end_datetime - now).total_seconds() / 3600
+
+        if end_time_diff <= 0:
+            return jsonify({
+                'success': False,
+                'error': 'Impossible de réserver dans le passé'
+            }), 400
+
+        if time_diff > 2:
+            return jsonify({
+                'success': False,
+                'error': 'Les réservations sont limitées aux 2 heures à venir'
+            }), 400
+
+        # Vérifier que la durée est de 1h
+        start_dt = datetime.fromisoformat(f"{date}T{start_time}:00")
+        end_dt = datetime.fromisoformat(f"{date}T{end_time}:00")
+        duration = (end_dt - start_dt).total_seconds() / 3600
+
+        if duration != 1.0:
+            return jsonify({
+                'success': False,
+                'error': 'La durée de réservation doit être d\'exactement 1 heure'
+            }), 400
+
+        # Vérifier que la salle existe réellement dans le système
+        cached_rooms = get_cached_rooms_data()
+
+        if room_number not in cached_rooms:
+            return jsonify({
+                'success': False,
+                'error': f'La salle {room_number} n\'existe pas'
+            }), 400
+
+        # Section critique : vérification et création de la réservation (protégée par verrou)
+        with reservation_lock:
+            # Vérifier qu'il n'y a pas de conflit avec une autre réservation
+            users_data = user_manager.users_data.get('users', {})
+            for other_user_id, other_user in users_data.items():
+                other_reservations = other_user.get('reservations', {}).get('history', [])
+                for other_res in other_reservations:
+                    # Vérifier seulement les réservations actives/upcoming et pour la même salle
+                    if (other_res.get('status') in ['active', 'upcoming'] and
+                        other_res.get('room_number') == room_number):
+
+                        # Vérifier le chevauchement horaire
+                        other_start = datetime.fromisoformat(other_res['start_time'])
+                        other_end = datetime.fromisoformat(other_res['end_time'])
+
+                        # Il y a conflit si les créneaux se chevauchent
+                        if (start_dt < other_end and end_dt > other_start):
+                            return jsonify({
+                                'success': False,
+                                'error': f'La salle {room_number} est déjà réservée pour ce créneau'
+                            }), 409  # 409 Conflict
+
+            # Créer la réservation
+            import uuid
+            reservation = {
+                'id': str(uuid.uuid4()),
+                'room_number': room_number,
+                'start_time': reservation_datetime.isoformat(),
+                'end_time': end_dt.isoformat(),
+                'status': 'upcoming' if time_diff > 0 else 'active',
+                'created_at': now.isoformat()
+            }
+
+            # Ajouter la réservation
+            user['reservations']['history'].append(reservation)
+            user['reservations']['total'] = len(user['reservations']['history'])
+            user['reservations']['active'] = len([r for r in user['reservations']['history'] if r['status'] in ['active', 'upcoming']])
+
+            # Sauvegarder
+            user_manager.users_data['users'][user_id] = user
+            user_manager._save_users()
+
+        return jsonify({
+            'success': True,
+            'message': 'Réservation créée avec succès',
+            'reservation': reservation,
+            'reservations': user['reservations']['history']
+        })
+
+    except Exception as e:
+        print(f"Erreur lors de la création de la réservation: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/reservations/<reservation_id>', methods=['DELETE'])
+def cancel_reservation(reservation_id):
+    """Annuler une réservation"""
+    try:
+        # Récupérer le token de session (cookies ou header)
+        session_token = get_session_token()
+
+        if not session_token:
+            return jsonify({
+                'success': False,
+                'error': 'Non authentifié'
+            }), 401
+
+        # Valider la session
+        user = user_manager.validate_session(session_token)
+
+        if not user:
+            return jsonify({
+                'success': False,
+                'error': 'Session invalide'
+            }), 401
+
+        user_id = user['user_id']
+
+        # Récupérer les réservations de l'utilisateur
+        reservations = user.get('reservations', {}).get('history', [])
+
+        # Trouver la réservation et vérifier qu'elle appartient à l'utilisateur
+        reservation_found = False
+        reservation_to_delete = None
+        updated_reservations = []
+
+        for reservation in reservations:
+            if reservation.get('id') == reservation_id:
+                reservation_found = True
+                reservation_to_delete = reservation
+                # Ne pas ajouter cette réservation (= suppression)
+            else:
+                updated_reservations.append(reservation)
+
+        if not reservation_found:
+            return jsonify({
+                'success': False,
+                'error': 'Réservation non trouvée ou vous n\'êtes pas autorisé à l\'annuler'
+            }), 404
+
+        # Mettre à jour les données utilisateur
+        user['reservations']['history'] = updated_reservations
+        user['reservations']['total'] = len(updated_reservations)
+        user['reservations']['active'] = len([r for r in updated_reservations if r['status'] in ['active', 'upcoming']])
+
+        # Sauvegarder
+        user_manager.users_data['users'][user_id] = user
+        user_manager._save_users()
+
+        return jsonify({
+            'success': True,
+            'message': 'Réservation annulée avec succès',
+            'reservations': updated_reservations
+        })
+
+    except Exception as e:
+        print(f"Erreur lors de l'annulation de la réservation: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
+@app.route('/api/reservations/active', methods=['GET'])
+def get_active_reservations():
+    """Récupérer toutes les réservations actives pour toutes les salles"""
+    try:
+        users_data = user_manager.users_data.get('users', {})
+        active_reservations = []
+
+        from datetime import datetime
+        now = datetime.now()
+
+        for user_id, user in users_data.items():
+            reservations = user.get('reservations', {}).get('history', [])
+            for reservation in reservations:
+                if reservation.get('status') in ['active', 'upcoming']:
+                    # Vérifier que la réservation n'est pas terminée
+                    end_time = datetime.fromisoformat(reservation['end_time'])
+                    if end_time > now:
+                        active_reservations.append({
+                            'room_number': reservation['room_number'],
+                            'start_time': reservation['start_time'],
+                            'end_time': reservation['end_time'],
+                            'status': reservation['status'],
+                            'user_name': user.get('name', 'Utilisateur')
+                        })
+
+        return jsonify({
+            'success': True,
+            'reservations': active_reservations,
+            'total': len(active_reservations)
+        })
+
+    except Exception as e:
+        print(f"Erreur lors de la récupération des réservations actives: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Erreur interne du serveur'
+        }), 500
+
 # Initialiser le cache au démarrage pour le développement local
 if __name__ == '__main__':
     print("🚀 Initialisation du cache ESIEE dynamique...")
@@ -759,3 +1428,5 @@ if __name__ == '__main__':
 
 # Export de l'app pour Vercel (WSGI)
 # Vercel utilise l'objet 'app' directement pour les applications Flask
+
+

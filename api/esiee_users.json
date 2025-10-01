@@ -1,0 +1,205 @@
+{
+  "users": {
+    "741a1ccadd0d330c": {
+      "user_id": "741a1ccadd0d330c",
+      "email": "test@esiee.fr",
+      "name": "Test User",
+      "given_name": "Test",
+      "family_name": "User",
+      "picture": "https://example.com/avatar.jpg",
+      "google_id": "12345",
+      "verified_email": true,
+      "created_at": "2025-09-29T19:58:09.546234",
+      "last_login": "2025-09-29T19:58:09.546234",
+      "login_count": 1,
+      "status": "active",
+      "role": "user",
+      "preferences": {
+        "notifications": true,
+        "theme": "auto"
+      },
+      "reservations": {
+        "total": 0,
+        "active": 0,
+        "history": []
+      }
+    },
+    "a259e35f93459799": {
+      "user_id": "a259e35f93459799",
+      "email": "tom77ds@gmail.com",
+      "name": "Thomas De Sousa",
+      "given_name": "Thomas",
+      "family_name": "De Sousa",
+      "picture": "https://lh3.googleusercontent.com/a/ACg8ocLbPngBNSEt8CwhxWyPwSajUHzN6p7WAcRgBSbAs2qQG5FMseJu=s96-c",
+      "google_id": "100518233840681282618",
+      "verified_email": false,
+      "created_at": "2025-09-29T20:02:38.910859",
+      "last_login": "2025-10-01T15:29:41.612890",
+      "login_count": 22,
+      "status": "active",
+      "role": "user",
+      "preferences": {
+        "notifications": true,
+        "theme": "auto"
+      },
+      "reservations": {
+        "total": 5,
+        "active": 5,
+        "history": [
+          {
+            "id": "6c223d3e-5e78-473a-9f78-f05e02052c30",
+            "room_number": "110",
+            "start_time": "2025-09-29T21:00:00",
+            "end_time": "2025-09-29T22:00:00",
+            "status": "active",
+            "created_at": "2025-09-29T21:57:09.417472"
+          },
+          {
+            "id": "e9932e93-4d52-4951-bcdd-fb5dc141d452",
+            "room_number": "110",
+            "start_time": "2025-09-29T22:00:00",
+            "end_time": "2025-09-29T23:00:00",
+            "status": "active",
+            "created_at": "2025-09-29T22:08:33.644260"
+          },
+          {
+            "id": "0e7d48bb-8206-4992-8673-2332bd32bcf6",
+            "room_number": "110",
+            "start_time": "2025-09-30T09:00:00",
+            "end_time": "2025-09-30T10:00:00",
+            "status": "active",
+            "created_at": "2025-09-30T09:42:23.547461"
+          },
+          {
+            "id": "284c0521-e521-458b-9f3b-50cfbd9c5f3f",
+            "room_number": "112",
+            "start_time": "2025-09-30T14:00:00",
+            "end_time": "2025-09-30T15:00:00",
+            "status": "active",
+            "created_at": "2025-09-30T14:07:11.325623"
+          },
+          {
+            "id": "44ac2a23-5a65-4cb5-bfc9-de404681ade6",
+            "room_number": "112",
+            "start_time": "2025-10-01T15:00:00",
+            "end_time": "2025-10-01T16:00:00",
+            "status": "active",
+            "created_at": "2025-10-01T15:32:57.961967"
+          }
+        ]
+      }
+    }
+  },
+  "sessions": {
+    "45018ab4560f25f754a25245d2e7b8dd8e640d8e1ba5212b8925294442ae6134": {
+      "user_id": "741a1ccadd0d330c",
+      "created_at": "2025-09-29T19:58:09.546610",
+      "expires_at": "2025-10-06T19:58:09.546601",
+      "last_activity": "2025-09-29T19:58:21.832485",
+      "status": "active"
+    },
+    "e99265142251886fbae4dafe68ce91af8e16dfe25399dcbb58d75d136beb976d": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-09-29T20:02:38.912113",
+      "expires_at": "2025-10-06T20:02:38.912103",
+      "last_activity": "2025-09-29T20:56:57.786391",
+      "status": "active"
+    },
+    "f074e4114ea26aa6e7fb34fc9fb842428a0b2ce0949d13a4a87ebcc46d5d95f6": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-09-29T21:05:31.770348",
+      "expires_at": "2025-10-06T21:05:31.770342",
+      "last_activity": "2025-09-29T21:08:18.329340",
+      "status": "active"
+    },
+    "8f5b586f1a877312406f03999c74c8bab6fdcf0b86022ee61feb4061a468101f": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-09-29T21:11:48.030835",
+      "expires_at": "2025-10-06T21:11:48.030817",
+      "last_activity": "2025-09-30T14:07:11.323392",
+      "status": "active"
+    },
+    "mST3ZN3VRDJcaHLg-_80DBynaiemVFMnWJ07tT-uvNIcr4MET_0zaTMXJSBRNCWP": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:10:58.569206",
+      "expires_at": "2025-10-08T10:10:58.569194",
+      "last_activity": "2025-10-01T10:12:43.231836",
+      "status": "active"
+    },
+    "6beZd2xxt2B-saXl_REAi81MmRwjTedg0GogmgjXpM_fPsTPbNaP6p8YULMbAWbj": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:12:52.884649",
+      "expires_at": "2025-10-08T10:12:52.884637",
+      "last_activity": "2025-10-01T10:13:00.785319",
+      "status": "active"
+    },
+    "cLiMWzEkb538oitT3qQJs0SAZfJUWdTLW-EO0ZEP0SPY_gb3TvdgeoOlSF3IGm_R": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:13:31.497283",
+      "expires_at": "2025-10-08T10:13:31.497275",
+      "last_activity": "2025-10-01T10:13:34.854832",
+      "status": "active"
+    },
+    "q8_O300R5XCWWEzesSiLMsNGmYfC0LoMrnIu7BKvOHkzBXBLXFJfR-jXiB8OuR7N": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:16:39.774051",
+      "expires_at": "2025-10-08T10:16:39.774032",
+      "last_activity": "2025-10-01T10:16:51.326341",
+      "status": "active"
+    },
+    "0XXEvNTV-UFiVwM49_gYLWQpivbZCfGYl4dFiW0DvU6itzRCDCtxkYHqWBRK6Ern": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:19:51.567127",
+      "expires_at": "2025-10-08T10:19:51.567117",
+      "last_activity": "2025-10-01T10:20:12.919554",
+      "status": "active"
+    },
+    "ItbpmNYyXUM7JJUBDAghzxURURXGxxyrKWm0lTotKnV6suPg8E-xOwDBIusu0MHm": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:21:10.183431",
+      "expires_at": "2025-10-08T10:21:10.183419",
+      "last_activity": "2025-10-01T10:21:36.206798",
+      "status": "active"
+    },
+    "dNr9KIXx6vG4_Rz4AcDPbYO3gwuvJzw4bRCw8OLeBkzcvm9CvaVBnezLheSU89Zy": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:26:25.021486",
+      "expires_at": "2025-10-08T10:26:25.021464",
+      "last_activity": "2025-10-01T10:26:42.891562",
+      "status": "active"
+    },
+    "eOXGToaiveWx6HZYeUpjTvV8A0jt5v166-6lwzTPaduC-adS5oeDHb6fPl_4_yPc": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:29:42.021709",
+      "expires_at": "2025-10-08T10:29:42.021696",
+      "last_activity": "2025-10-01T10:30:18.058003",
+      "status": "active"
+    },
+    "hOhzoVLRVQBulHy8CGJ0HxrbOqrQFBZUznsRrR1MpyVHeHEwxjYC4kx9orkjv6FX": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:40:12.207740",
+      "expires_at": "2025-10-08T10:40:12.207726",
+      "last_activity": "2025-10-01T10:40:32.744335",
+      "status": "active"
+    },
+    "_rsmT-30QgLjM4sfjPwSsxPchTxA-FehXfhnlOMAByIu4WpNcM1wh1c66UMkZa15": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T10:42:58.763131",
+      "expires_at": "2025-10-08T10:42:58.763117",
+      "last_activity": "2025-10-01T10:44:37.236521",
+      "status": "active"
+    },
+    "6kIzUx4qw_5ztUDzGL8nRFJKwexDCoMNgjjJt6SxUrkbpghfCsKt-h3FlrHSsH8O": {
+      "user_id": "a259e35f93459799",
+      "created_at": "2025-10-01T15:29:41.614564",
+      "expires_at": "2025-10-08T15:29:41.614547",
+      "last_activity": "2025-10-01T15:33:49.256736",
+      "status": "active"
+    }
+  },
+  "metadata": {
+    "created": "2025-09-29T19:57:37.041719",
+    "last_updated": "2025-10-01T15:33:49.256746",
+    "version": "1.0"
+  }
+}

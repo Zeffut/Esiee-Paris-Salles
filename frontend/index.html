@@ -7,10 +7,10 @@
 
 <meta name="description" content="Application de consultation des salles ESIEE - Disponibilité en temps réel">
 
-<link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="styles.css?v=1759177221" />
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="script.js"></script>
+<script src="script.js?v=1759177221"></script>
 </head>
 <body>
   <!-- Fixed header zone -->
@@ -97,12 +97,6 @@
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
         </button>
-        <button class="profile-btn profile-btn-apple" id="appleLoginBtn">
-          Se connecter avec
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" fill="#fff"/>
-          </svg>
-        </button>
       </div>
 
       <div class="profile-features">
@@ -157,7 +151,11 @@
     <div class="profile-logged" id="profileLogged" style="display: none;">
       <div class="profile-user-info">
         <div class="profile-avatar">
-          <img src="https://via.placeholder.com/80x80/4A4A4A/FFFFFF?text=JD" alt="Avatar" id="userAvatar">
+          <img src="https://via.placeholder.com/80x80/4A4A4A/FFFFFF?text=JD" alt="Avatar" id="userAvatar" style="display: none;">
+          <svg id="userAvatarIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="10" r="3" fill="#868686"/>
+            <path d="M6.5 18.5C7.5 16 9.5 14.5 12 14.5C14.5 14.5 16.5 16 17.5 18.5" stroke="#868686" stroke-width="2" stroke-linecap="round"/>
+          </svg>
         </div>
         <div class="profile-user-details">
           <h2 class="profile-username" id="userName">John Doe</h2>
@@ -166,6 +164,38 @@
         </div>
       </div>
 
+      <!-- Section Réservations en cours -->
+      <div class="reservations-section">
+        <div class="reservations-header">
+          <div class="reservations-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+              <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2"/>
+              <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2"/>
+              <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
+              <circle cx="12" cy="16" r="2" fill="currentColor"/>
+            </svg>
+            <h3>Mes réservations</h3>
+          </div>
+          <span class="reservations-count" id="reservationsCount">0</span>
+        </div>
+
+        <div class="reservations-content" id="reservationsContent">
+          <!-- Les réservations seront ajoutées dynamiquement ici -->
+          <div class="no-reservations" id="noReservations">
+            <div class="no-reservations-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <p>Aucune réservation en cours</p>
+            <span>Vos futures réservations apparaîtront ici</span>
+          </div>
+        </div>
+      </div>
 
       <div class="profile-menu">
 
@@ -345,6 +375,91 @@
         <div id="roomModalSchedule">
           <!-- L'emploi du temps sera chargé dynamiquement -->
         </div>
+      </div>
+
+      <!-- Bouton de réservation -->
+      <div class="room-modal-actions">
+        <button class="reserve-btn-modal" id="roomModalReserveBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Réserver cette salle
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de réservation -->
+  <div class="reservation-modal" id="reservationModal">
+    <div class="reservation-modal-content">
+      <div class="reservation-modal-header">
+        <h2 class="reservation-modal-title" id="reservationModalTitle">Réserver la salle</h2>
+        <button class="reservation-modal-close" id="reservationModalClose">×</button>
+      </div>
+
+      <form id="reservationForm" class="reservation-form">
+        <div class="form-group">
+          <label for="reservationTimeSlot">Choisir un créneau (1 heure)</label>
+          <select id="reservationTimeSlot" name="timeSlot" required>
+            <!-- Les créneaux seront générés dynamiquement -->
+          </select>
+        </div>
+
+        <div class="reservation-info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 8v4l3 3" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span>Réservations disponibles uniquement pour les 2 prochaines heures</span>
+        </div>
+
+        <div class="reservation-warning" id="reservationWarning" style="display: none;">
+          <!-- Messages d'avertissement -->
+        </div>
+
+        <div class="reservation-actions">
+          <button type="button" class="btn-secondary" id="cancelReservation">Annuler</button>
+          <button type="submit" class="btn-primary" id="confirmReservation">Confirmer la réservation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modals de popup personnalisés -->
+  <div class="custom-alert-overlay" id="customAlertOverlay">
+    <div class="custom-alert-modal">
+      <div class="custom-alert-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="custom-alert-content">
+        <h3 class="custom-alert-title" id="customAlertTitle">Information</h3>
+        <p class="custom-alert-message" id="customAlertMessage">Message</p>
+      </div>
+      <div class="custom-alert-actions">
+        <button class="custom-alert-btn" id="customAlertBtn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="custom-confirm-overlay" id="customConfirmOverlay">
+    <div class="custom-confirm-modal">
+      <div class="custom-confirm-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="custom-confirm-content">
+        <h3 class="custom-confirm-title" id="customConfirmTitle">Confirmation</h3>
+        <p class="custom-confirm-message" id="customConfirmMessage">Message</p>
+      </div>
+      <div class="custom-confirm-actions">
+        <button class="custom-confirm-btn-cancel" id="customConfirmCancel">Annuler</button>
+        <button class="custom-confirm-btn-confirm" id="customConfirmBtn">Confirmer</button>
       </div>
     </div>
   </div>
