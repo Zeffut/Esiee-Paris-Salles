@@ -13,7 +13,11 @@ from events_api import get_events_next_week, get_events_for_room, get_available_
 from user_manager import user_manager
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=['http://localhost:8000', 'http://localhost:5500', 'https://esiee.zeffut.fr'])  # Permettre les requêtes cross-origin avec credentials
+CORS(app,
+     supports_credentials=True,
+     origins=['http://localhost:8000', 'http://localhost:5500', 'https://esiee.zeffut.fr'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+     allow_headers=['Content-Type', 'Authorization', 'X-CSRF-Token'])
 
 # Verrou global pour éviter les race conditions sur les réservations
 reservation_lock = threading.Lock()
