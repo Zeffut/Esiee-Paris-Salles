@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Configuration de l'API
-  const API_BASE_URL = 'https://api.zeffut.fr/api';
+  const API_BASE_URL = 'https://api.zeffut.fr/api/';
 
   // Fonction pour calculer le statut d'une salle en temps réel
   function calculateRoomStatus(roomNumber) {
