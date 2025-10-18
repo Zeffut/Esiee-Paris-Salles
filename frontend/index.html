@@ -10,9 +10,14 @@
 <link rel="stylesheet" href="styles.css?v=1759177221" />
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<!-- Vercel Analytics & Speed Insights -->
-<script defer src="/_vercel/insights/script.js"></script>
 <script src="script.js?v=1759177221"></script>
+<!-- Vercel Analytics & Speed Insights -->
+<script type="module">
+  import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics@latest/dist/index.js';
+  import { injectSpeedInsights } from 'https://cdn.jsdelivr.net/npm/@vercel/speed-insights@latest/dist/index.js';
+  inject();
+  injectSpeedInsights();
+</script>
 </head>
 <body>
   <!-- Fixed header zone -->
