@@ -1,39 +1,30 @@
-Esiee-Paris-Salles - Documentation simple
+Esiee-Paris-Salles – Documentation simple et vivante ✨
 
-Objectif
-- Fournit une vue d’ensemble de l’application Esiee-Paris-Salles et de ses composants principaux (backend API et frontend). Il ne s’agit pas d’un guide d’installation ni d’un guide de test.
+Objectif 🎯
+- Vue d’ensemble de l’application Esiee-Paris-Salles et de ses composants (backend API et frontend).
+- Pas d’installation ni de test local.
+- Tests via le site public.
 
-Contexte
-- Documentation de l’architecture et des interfaces utilisées pour afficher les salles et les réservations.
+Accès au site public pour tester 🌐
+- Site public: https://esieesalles.vercel.app
+- Pour tester, rendez-vous sur le site public plutôt que d’essayer une exécution locale.
 
-Structure du dépôt
-- api/ – code serveur de l’API
+Structure du dépôt 🗂️
+- api/ – code serveur
 - frontend/ – code client
-- README.md – documentation du projet
+- README.md – documentation
 
-Architecture et stack (niveau informationnel)
-- Backend: Python (répertoire api/)
-- Frontend: code client dans frontend/
-- Hébergement: frontend sur esieesalles.vercel.app; API accessible via le chemin /api sur le même domaine ou sur esiee.*.fr/api selon l’hébergement
+Remarques et philosophie 💡
+- Documentation centrée sur les interfaces et composants, sans instructions d’exécution ni de test locale.
+- Pas de procédure d’installation dans ce README.
 
-Notes sur les endpoints (indicatifs)
-- GET /api: information générale / health
-- GET /api/rooms ou /api/salles: liste des salles
-- GET /api/reservations: accès aux réservations
-- POST /api/reservations: créer une réservation
-- GET /api/salles/{id}: détails d’une salle
+Mises à jour et historique ⏳
+- Dernière mise à jour: à compléter
 
-Configuration et environnement
-- API_BASE_URL: URL de base de l’API (le cas échéant)
-- ENVIRONMENT: development | production
-- SECRET_KEY, DATABASE_URL: selon les besoins
+Ressources et contact 📬
+- Si vous avez des questions, contactez l’administrateur du site Esiee-Paris-Salles.
 
-Déploiement et observations
-- Frontend: https://esieesalles.vercel.app
-- API: domaine esiee.*.fr ou esieesalles.vercel.app/api selon l’implémentation
+Notes finales ⭐
+- Lorsque vous souhaitez tester, privilégiez le site public.
 
-Licence
-- À préciser (à compléter par l’équipe).
-
-Remarque
-- Cette documentation décrit les composants et les interfaces sans instructions d’exécution ni de test du projet.
+Souhaites-tu que j’applique directement cette version sur le dépôt (commit sur main) avec un message du type “docs(readme): version vivante et redirection vers le site public” ? Si oui, je procéderai immédiatement. Sinon, je peux aussi ajuster le texte selon tes préférences.
