@@ -17,7 +17,6 @@ Statut: Développé et en production partielle (à compléter selon votre stade)
 - Développement et tests
 - Contribution
 - Licence
-- Remerciements
 
 ---
 
@@ -157,15 +156,4 @@ Note: les noms réels peuvent varier selon l’implémentation. Vérifie dans ap
 
 ## Licence
 
-Indiquez la licence du projet (ex. MIT, Apache 2.0). Si non précisée, ajouter une section Licence avec “Proprietary / non licensed”.
-
----
-
-## Remerciements
-
-- Merci à l’équipe Zeffut pour le dépôt Esiee-Paris-Salles
-- Merci à tous les contributeurs et utilisateurs
-
----
-
-Souhaitez-vous que je tente d’ajouter ce README directement au dépôt si l’accès est rétabli (avec le token GitHub que tu souhaites utiliser) ou préfères-tu que je te guide pas à pas pour l’ajouter manuellement ? Si tu préfères l’ajout automatique, indique comment je dois accéder au dépôt (token sécurisé ou méthode d’accès que tu autorises).
+Indiquez la licence du projet (ex. MIT, Apache 2.0). Si non précisée, ajouter une section Licence avec “Proprietary / non licensed”
