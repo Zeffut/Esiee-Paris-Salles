@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Logs et caches temporaires
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation
+README.md
+*.md
+
+# Fichiers de données temporaires (à exclure si généré automatiquement)
+# Décommentez si vous voulez exclure les caches
+# esiee_cache.json
+# esiee_users.json
