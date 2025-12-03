@@ -101,10 +101,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const hamburger = document.querySelector('.hamburger');
   const menuOverlay = document.querySelector('#menuOverlay');
   const roomModal = document.querySelector('#roomModal');
-  const roomModalClose = document.querySelector('#roomModalClose');
   const filterBtn = document.querySelector('#filterBtn');
   const filterModal = document.querySelector('#filterModal');
-  const filterModalClose = document.querySelector('#filterModalClose');
   const profilePage = document.querySelector('#profilePage');
   const profileBack = document.querySelector('#profileBack');
   const cards = document.querySelectorAll('.card');
@@ -513,6 +511,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Fermer le modal de détails
   function closeRoomModal() {
+    const modalContent = roomModal.querySelector('.room-modal-content');
+    if (modalContent) {
+      modalContent.classList.remove('expanded');
+    }
+    isModalExpanded = false;
     roomModal.classList.remove('open');
     document.body.classList.remove('modal-open');
   }
@@ -528,6 +531,62 @@ document.addEventListener('DOMContentLoaded', function() {
   let startY = 0;
   let currentY = 0;
   let isDragging = false;
+  let isModalExpanded = false;
+
+  // Gestion du scroll pour agrandir le modal
+  function handleModalScroll(e) {
+    const modalContent = roomModal.querySelector('.room-modal-content');
+    if (!modalContent) return;
+
+    const scrollTop = modalContent.scrollTop;
+    const scrollHeight = modalContent.scrollHeight;
+    const clientHeight = modalContent.clientHeight;
+
+    // Si on scroll vers le bas et qu'on n'est pas encore expanded
+    if (scrollTop > 20 && !isModalExpanded) {
+      modalContent.classList.add('expanded');
+      isModalExpanded = true;
+    }
+
+    // Si on scroll vers le haut et qu'on est tout en haut, réduire le modal
+    if (scrollTop === 0 && isModalExpanded) {
+      // On garde le modal expanded tant qu'on ne swipe pas vers le bas
+      // Le swipe-down gèrera la réduction
+    }
+  }
+
+  // Gestion du scroll molette pour fermer le modal quand on est en haut
+  let wheelAccumulator = 0;
+  let wheelTimeout = null;
+
+  function handleModalWheel(e) {
+    const modalContent = roomModal.querySelector('.room-modal-content');
+    if (!modalContent) return;
+
+    // Si on est tout en haut et qu'on scroll vers le haut (deltaY négatif)
+    if (modalContent.scrollTop === 0 && e.deltaY < 0) {
+      e.preventDefault();
+      
+      // Accumuler le scroll
+      wheelAccumulator += Math.abs(e.deltaY);
+      
+      // Reset après 300ms d'inactivité
+      if (wheelTimeout) clearTimeout(wheelTimeout);
+      wheelTimeout = setTimeout(() => {
+        wheelAccumulator = 0;
+      }, 300);
+
+      // Effet visuel de drag
+      const translateY = Math.min(wheelAccumulator * 0.3, 100);
+      modalContent.style.transform = `translateY(${translateY}px)`;
+
+      // Si on a assez scrollé, fermer le modal
+      if (wheelAccumulator > 150) {
+        wheelAccumulator = 0;
+        closeRoomModal();
+      }
+    }
+  }
 
   function handleTouchStart(e) {
     startY = e.touches[0].clientY;
@@ -558,7 +617,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const diffY = currentY - startY;
     const modalContent = roomModal.querySelector('.room-modal-content');
 
-    // Si on a swipé vers le bas de plus de 80px, fermer le modal
+    // Si on a swipé vers le bas de plus de 80px et qu'on est en haut du contenu, fermer le modal
     if (diffY > 80 && modalContent.scrollTop === 0) {
       closeRoomModal();
     } else {
@@ -575,6 +634,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Fermer le modal de filtre
   function closeFilterModal() {
+    const modalContent = filterModal.querySelector('.filter-modal-content');
+    if (modalContent) {
+      modalContent.classList.remove('expanded');
+    }
+    isFilterModalExpanded = false;
     filterModal.classList.remove('open');
     document.body.classList.remove('modal-open');
   }
@@ -707,7 +771,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Event listeners
   hamburger.addEventListener('click', toggleMenu);
   menuOverlay.addEventListener('click', closeMenu);
-  roomModalClose.addEventListener('click', closeRoomModal);
   roomModal.addEventListener('click', closeRoomModalOverlay);
 
   // Event listener pour le bouton de réservation dans le modal de salle
@@ -722,7 +785,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   filterBtn.addEventListener('click', openFilterModal);
-  filterModalClose.addEventListener('click', closeFilterModal);
   filterModal.addEventListener('click', closeFilterModalOverlay);
   profileBack.addEventListener('click', closeProfilePage);
 
@@ -730,6 +792,108 @@ document.addEventListener('DOMContentLoaded', function() {
   roomModal.addEventListener('touchstart', handleTouchStart, { passive: false });
   roomModal.addEventListener('touchmove', handleTouchMove, { passive: false });
   roomModal.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+  // Event listener pour le scroll qui agrandit le modal
+  const roomModalContent = roomModal.querySelector('.room-modal-content');
+  if (roomModalContent) {
+    roomModalContent.addEventListener('scroll', handleModalScroll, { passive: true });
+    roomModalContent.addEventListener('wheel', handleModalWheel, { passive: false });
+  }
+
+  // =============================================================================
+  // GESTION DU SWIPE ET SCROLL POUR LE MODAL DES FILTRES
+  // =============================================================================
+
+  let filterStartY = 0;
+  let filterCurrentY = 0;
+  let isFilterDragging = false;
+  let isFilterModalExpanded = false;
+
+  // Gestion du scroll pour agrandir le modal des filtres
+  function handleFilterModalScroll(e) {
+    const modalContent = filterModal.querySelector('.filter-modal-content');
+    if (!modalContent) return;
+
+    const scrollTop = modalContent.scrollTop;
+
+    if (scrollTop > 20 && !isFilterModalExpanded) {
+      modalContent.classList.add('expanded');
+      isFilterModalExpanded = true;
+    }
+  }
+
+  // Gestion du scroll molette pour fermer le modal des filtres
+  let filterWheelAccumulator = 0;
+  let filterWheelTimeout = null;
+
+  function handleFilterModalWheel(e) {
+    const modalContent = filterModal.querySelector('.filter-modal-content');
+    if (!modalContent) return;
+
+    if (modalContent.scrollTop === 0 && e.deltaY < 0) {
+      e.preventDefault();
+      
+      filterWheelAccumulator += Math.abs(e.deltaY);
+      
+      if (filterWheelTimeout) clearTimeout(filterWheelTimeout);
+      filterWheelTimeout = setTimeout(() => {
+        filterWheelAccumulator = 0;
+      }, 300);
+
+      const translateY = Math.min(filterWheelAccumulator * 0.3, 100);
+      modalContent.style.transform = `translateY(${translateY}px)`;
+
+      if (filterWheelAccumulator > 150) {
+        filterWheelAccumulator = 0;
+        closeFilterModal();
+      }
+    }
+  }
+
+  function handleFilterTouchStart(e) {
+    filterStartY = e.touches[0].clientY;
+    isFilterDragging = true;
+  }
+
+  function handleFilterTouchMove(e) {
+    if (!isFilterDragging) return;
+    filterCurrentY = e.touches[0].clientY;
+    const diffY = filterCurrentY - filterStartY;
+
+    if (diffY > 0) {
+      const modalContent = filterModal.querySelector('.filter-modal-content');
+      if (modalContent.scrollTop === 0) {
+        e.preventDefault();
+        const translateY = Math.min(diffY * 0.5, 100);
+        modalContent.style.transform = `translateY(${translateY}px)`;
+      }
+    }
+  }
+
+  function handleFilterTouchEnd(e) {
+    if (!isFilterDragging) return;
+    isFilterDragging = false;
+
+    const diffY = filterCurrentY - filterStartY;
+    const modalContent = filterModal.querySelector('.filter-modal-content');
+
+    if (diffY > 80 && modalContent.scrollTop === 0) {
+      closeFilterModal();
+    } else {
+      modalContent.style.transform = 'translateY(0)';
+    }
+  }
+
+  // Event listeners pour le swipe et scroll sur le modal des filtres
+  filterModal.addEventListener('touchstart', handleFilterTouchStart, { passive: false });
+  filterModal.addEventListener('touchmove', handleFilterTouchMove, { passive: false });
+  filterModal.addEventListener('touchend', handleFilterTouchEnd, { passive: false });
+
+  const filterModalContent = filterModal.querySelector('.filter-modal-content');
+  if (filterModalContent) {
+    filterModalContent.addEventListener('scroll', handleFilterModalScroll, { passive: true });
+    filterModalContent.addEventListener('wheel', handleFilterModalWheel, { passive: false });
+  }
 
   // Event listeners pour les boutons de filtre
   document.getElementById('filterReset').addEventListener('click', resetFilters);
