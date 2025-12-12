@@ -1425,7 +1425,6 @@ if __name__ == '__main__':
         print(f"❌ Erreur lors de l'initialisation du cache: {e}")
 
     import os
-    # Port configurable via variable d'environnement
     port = 3001
     debug = False
 
