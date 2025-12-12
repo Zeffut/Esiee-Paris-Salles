@@ -942,8 +942,21 @@ document.addEventListener('DOMContentLoaded', function() {
   // Écouter aussi le scroll sur la grille
   grid.addEventListener('scroll', handleScroll);
 
+  // Fonction pour afficher le loader
+  function showLoader() {
+    const loader = document.getElementById('roomsLoader');
+    if (loader) loader.classList.remove('hidden');
+  }
+
+  // Fonction pour masquer le loader
+  function hideLoader() {
+    const loader = document.getElementById('roomsLoader');
+    if (loader) loader.classList.add('hidden');
+  }
+
   // Fonction pour charger les données depuis l'API
   async function loadRoomsFromAPI() {
+    showLoader();
     try {
       // Charger les salles et les réservations actives en parallèle
       const [roomsResponse, reservationsResponse] = await Promise.all([
@@ -1008,12 +1021,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         hideAPIError();
+        hideLoader();
         renderRooms();
       } else {
         throw new Error('API non disponible');
       }
     } catch (error) {
       showAPIError();
+      hideLoader();
       // Utiliser les données par défaut en cas d'erreur
       roomData = defaultRoomData;
       roomStatuses = defaultRoomStatuses;

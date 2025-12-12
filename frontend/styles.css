@@ -144,6 +144,41 @@ body.modal-open {
   color: #fff;
 }
 
+/* Loader pour le chargement des salles */
+.rooms-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 16px;
+}
+
+.rooms-loader.hidden {
+  display: none;
+}
+
+.loader-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loader-text {
+  color: rgba(134, 134, 134);
+  font-size: 14px;
+  margin: 0;
+}
+
 /* Grid */
 .grid {
   margin-top:6px;
