@@ -380,9 +380,16 @@ def get_room_availability(room_number):
             is_available = is_room_available_at_time(room_number, day, time)
             status = 'libre' if is_available else 'occupé'
         else:
-            # Vérifier la disponibilité actuelle depuis le cache
-            statuses = get_dynamic_room_statuses()
-            status = statuses.get(room_number, 'libre')
+            # Vérifier la disponibilité actuelle en utilisant l'emploi du temps
+            now = datetime.now()
+            day_mapping = {
+                0: 'monday', 1: 'tuesday', 2: 'wednesday', 3: 'thursday',
+                4: 'friday', 5: 'saturday', 6: 'sunday'
+            }
+            current_day = day_mapping.get(now.weekday(), 'monday')
+            current_time = now.strftime('%H:%M')
+            is_available = is_room_available_at_time(room_number, current_day, current_time)
+            status = 'libre' if is_available else 'occupé'
 
         return jsonify({
             'success': True,
@@ -405,10 +412,24 @@ def get_stats():
     """Endpoint pour récupérer les statistiques des salles (100% dynamique)"""
     try:
         rooms_data = get_dynamic_rooms_data()
-        statuses = get_dynamic_room_statuses()
-
+        room_schedules = get_dynamic_room_schedules()
+        
+        # Calculer les statuts en temps réel
+        now = datetime.now()
+        day_mapping = {
+            0: 'monday', 1: 'tuesday', 2: 'wednesday', 3: 'thursday',
+            4: 'friday', 5: 'saturday', 6: 'sunday'
+        }
+        current_day = day_mapping.get(now.weekday(), 'monday')
+        current_time = now.strftime('%H:%M')
+        
         total_rooms = len(rooms_data)
-        free_rooms = sum(1 for status in statuses.values() if status == 'libre')
+        free_rooms = 0
+        
+        for room_number in rooms_data.keys():
+            if is_room_available_at_time(room_number, current_day, current_time):
+                free_rooms += 1
+        
         occupied_rooms = total_rooms - free_rooms
 
         # Statistiques par type

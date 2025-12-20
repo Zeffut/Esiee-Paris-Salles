@@ -283,38 +283,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
 
-  // Données par défaut en attendant l'API
-  const defaultRoomData = {
-    '0110': { name: 'Salle de cours 0110', board: 'Tableau blanc', capacity: '30', type: 'Salle classique' },
-    '0160': { name: 'Laboratoire informatique', board: 'Écran interactif', capacity: '25', type: 'Salle classique' },
-    '0210': { name: 'Salle de conférence', board: 'Vidéoprojecteur', capacity: '50', type: 'Amphithéâtre' },
-    '0260': { name: 'Salle de cours 0260', board: 'Tableau blanc', capacity: '35', type: 'Salle classique' },
-    '2101': { name: 'Salle de TP électronique', board: 'Tableau noir', capacity: '20', type: 'Salle classique' },
-    '2102': { name: 'Laboratoire chimie', board: 'Tableau blanc', capacity: '18', type: 'Salle classique' },
-    '2103': { name: 'Salle informatique', board: 'Écran interactif', capacity: '25', type: 'Salle classique' },
-    '2104': { name: 'Salle de cours 2104', board: 'Tableau blanc', capacity: '40', type: 'Salle classique' },
-    '2107': { name: 'Amphithéâtre B', board: 'Vidéoprojecteur', capacity: '80', type: 'Amphithéâtre' },
-    '3205': { name: 'Salle polyvalente', board: 'Tableau blanc interactif', capacity: '40', type: 'Salle classique' },
-    '3209': { name: 'Salle de cours 3209', board: 'Tableau blanc', capacity: '32', type: 'Salle classique' },
-    '3303': { name: 'Laboratoire physique', board: 'Tableau noir', capacity: '22', type: 'Salle classique' },
-    '3309': { name: 'Salle de réunion 3309', board: 'Écran tactile', capacity: '12', type: 'Salle classique' },
-    '4103': { name: 'Amphithéâtre principal', board: 'Écran géant', capacity: '120', type: 'Amphithéâtre' },
-    '4109': { name: 'Salle de cours 4109', board: 'Tableau blanc', capacity: '28', type: 'Salle classique' },
-    '4203': { name: 'Laboratoire électronique', board: 'Tableau interactif', capacity: '20', type: 'Salle classique' },
-    '4209': { name: 'Salle de projet', board: 'Écran tactile', capacity: '16', type: 'Salle classique' },
-    '5103': { name: 'Salle de conférence 5103', board: 'Vidéoprojecteur', capacity: '60', type: 'Amphithéâtre' },
-    '5109': { name: 'Salle de cours 5109', board: 'Tableau blanc', capacity: '30', type: 'Salle classique' },
-    '5203': { name: 'Salle de réunion', board: 'Écran tactile', capacity: '15', type: 'Salle classique' }
-  };
+  // Données par défaut - vide, l'API fournit toutes les salles
+  const defaultRoomData = {};
 
-  // Statuts par défaut
-  const defaultRoomStatuses = {
-    '0110': 'libre', '0160': 'occupé', '0210': 'libre', '0260': 'occupé',
-    '2101': 'libre', '2102': 'libre', '2103': 'occupé', '2104': 'libre',
-    '2107': 'occupé', '3205': 'libre', '3209': 'libre', '3303': 'occupé',
-    '3309': 'libre', '4103': 'libre', '4109': 'occupé', '4203': 'libre',
-    '4209': 'libre', '5103': 'occupé', '5109': 'libre', '5203': 'libre'
-  };
+  // Statuts par défaut - vide, calculé côté client
+  const defaultRoomStatuses = {};
 
   let roomData = defaultRoomData;
   let roomStatuses = defaultRoomStatuses;

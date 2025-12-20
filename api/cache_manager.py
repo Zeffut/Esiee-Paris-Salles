@@ -6,6 +6,7 @@ Récupère les données une fois par heure et les stocke en JSON
 
 import json
 import os
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import logging
@@ -14,6 +15,59 @@ from events_api import get_events_this_week, get_available_rooms_today
 logger = logging.getLogger(__name__)
 
 class ESIEECacheManager:
+    # Liste des salles connues de l'ESIEE (salles PER)
+    # Ces salles sont toujours affichées, même sans cours programmés
+    KNOWN_ROOMS = {
+        # Amphithéâtres (Rue - 3 chiffres)
+        '110': {'name': 'Amphithéâtre 110', 'board': 'Tableau à craie', 'capacity': '116', 'type': 'Amphithéâtre'},
+        '160': {'name': 'Amphithéâtre 160', 'board': 'Tableau à craie', 'capacity': '116', 'type': 'Amphithéâtre'},
+        '210': {'name': 'Amphithéâtre 210', 'board': 'Tableau à craie', 'capacity': '156', 'type': 'Amphithéâtre'},
+        '260': {'name': 'Amphithéâtre 260', 'board': 'Tableau à craie', 'capacity': '156', 'type': 'Amphithéâtre'},
+        # Salles Rue (3 chiffres)
+        '112': {'name': 'Salle 112', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '113': {'name': 'Salle 113', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '115': {'name': 'Salle 115', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '164': {'name': 'Salle 164', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '165': {'name': 'Salle 165', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        # Epis 1
+        '1101': {'name': 'Salle 1101', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '1102': {'name': 'Salle 1102', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '1103': {'name': 'Salle 1103', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '1201': {'name': 'Salle 1201', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '1202': {'name': 'Salle 1202', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '1203': {'name': 'Salle 1203', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        # Epis 2
+        '2101': {'name': 'Salle 2101', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '2102': {'name': 'Salle 2102', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '2103': {'name': 'Salle 2103', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '2104': {'name': 'Salle 2104', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '2105': {'name': 'Salle 2105', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '2201': {'name': 'Salle 2201', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '2202': {'name': 'Salle 2202', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '2203': {'name': 'Salle 2203', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        # Epis 3
+        '3101': {'name': 'Salle 3101', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '3102': {'name': 'Salle 3102', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '3103': {'name': 'Salle 3103', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '3201': {'name': 'Salle 3201', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '3202': {'name': 'Salle 3202', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '3203': {'name': 'Salle 3203', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        # Epis 4
+        '4101': {'name': 'Salle 4101', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '4102': {'name': 'Salle 4102', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '4103': {'name': 'Salle 4103', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '4201': {'name': 'Salle 4201', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '4202': {'name': 'Salle 4202', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '4203': {'name': 'Salle 4203', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        # Epis 5
+        '5101': {'name': 'Salle 5101', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '5102': {'name': 'Salle 5102', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '5103': {'name': 'Salle 5103', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '5201': {'name': 'Salle 5201', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '5202': {'name': 'Salle 5202', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+        '5203': {'name': 'Salle 5203', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
+    }
+
     def __init__(self, cache_file: str = "esiee_cache.json", cache_duration_hours: int = 1):
         self.cache_file = cache_file
         self.cache_duration = timedelta(hours=cache_duration_hours)
@@ -205,29 +259,40 @@ class ESIEECacheManager:
 
             logger.info(f"📊 Emplois du temps générés pour {len(room_schedules)} salles")
 
-            # Créer les données de salles
+            # Créer les données de salles en utilisant les salles connues comme base
+            # Toutes les salles connues sont toujours incluses, même sans cours
             rooms_data = {}
-            for room in sorted(all_per_rooms, key=lambda x: (len(x), x)):
-                # Déterminer le type selon le numéro (les 4 amphithéâtres spécifiques)
-                if room in ['110', '160']:
-                    room_type = 'Amphithéâtre'
-                    capacity = '116'
-                    board = 'Tableau à craie'
-                if room in ['210', '260']:
-                    room_type = 'Amphithéâtre'
-                    capacity = '156'
-                    board = 'Tableau à craie'
-                else:
-                    room_type = 'Salle classique'
-                    capacity = '30'
-                    board = 'Tableau blanc'
+            
+            # D'abord, ajouter toutes les salles connues
+            for room, room_info in self.KNOWN_ROOMS.items():
+                rooms_data[room] = room_info.copy()
+            
+            # Ensuite, ajouter les salles découvertes dans les événements (si nouvelles)
+            for room in all_per_rooms:
+                if room not in rooms_data:
+                    # Déterminer le type selon le numéro (les 4 amphithéâtres spécifiques)
+                    if room in ['110', '160']:
+                        room_type = 'Amphithéâtre'
+                        capacity = '116'
+                        board = 'Tableau à craie'
+                    elif room in ['210', '260']:
+                        room_type = 'Amphithéâtre'
+                        capacity = '156'
+                        board = 'Tableau à craie'
+                    else:
+                        room_type = 'Salle classique'
+                        capacity = '30'
+                        board = 'Tableau blanc'
 
-                rooms_data[room] = {
-                    'name': f'Salle {room}',
-                    'board': board,
-                    'capacity': capacity,
-                    'type': room_type
-                }
+                    rooms_data[room] = {
+                        'name': f'Salle {room}',
+                        'board': board,
+                        'capacity': capacity,
+                        'type': room_type
+                    }
+            
+            # Nombre total de salles (connues + découvertes)
+            total_rooms = len(rooms_data)
 
             # Structurer les données du cache
             self.cache_data = {
@@ -238,8 +303,10 @@ class ESIEECacheManager:
                 'room_events': room_events,
                 'stats': {
                     'total_events': len(events),
-                    'total_rooms': len(all_per_rooms),
-                    'rooms_with_schedules': len(room_schedules)
+                    'total_rooms': total_rooms,
+                    'rooms_with_schedules': len(room_schedules),
+                    'known_rooms': len(self.KNOWN_ROOMS),
+                    'discovered_rooms': len(all_per_rooms)
                 }
             }
 
@@ -248,7 +315,7 @@ class ESIEECacheManager:
             # Sauvegarder le cache
             self.save_cache()
 
-            logger.info(f"✅ Cache rafraîchi: {len(events)} événements, {len(all_per_rooms)} salles")
+            logger.info(f"✅ Cache rafraîchi: {len(events)} événements, {total_rooms} salles ({len(self.KNOWN_ROOMS)} connues)")
             return True
 
         except Exception as e:
