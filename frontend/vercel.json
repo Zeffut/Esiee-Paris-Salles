@@ -1,3 +1,13 @@
 {
-  "version": 2
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/rb/script.js",
+      "destination": "https://tracking.zeffut.fr/api/script.js"
+    },
+    {
+      "source": "/rb/track",
+      "destination": "https://tracking.zeffut.fr/api/track"
+    }
+  ]
 }
