@@ -10,6 +10,55 @@ if (reloadCount > 5) {
 }
 
 // =============================================================================
+// CACHE ET DÉDUPLICATION DES REQUÊTES API
+// =============================================================================
+const apiCache = {
+  pendingRequests: new Map(), // Requêtes en cours (pour déduplication)
+  cache: new Map(),           // Cache des réponses
+  ttl: 30000                  // TTL de 30 secondes
+};
+
+// Fetch avec déduplication et cache optionnel
+async function cachedFetch(url, options = {}, useCache = false) {
+  const cacheKey = `${options.method || 'GET'}-${url}`;
+
+  // Si cache activé et données récentes disponibles, les retourner
+  if (useCache && apiCache.cache.has(cacheKey)) {
+    const cached = apiCache.cache.get(cacheKey);
+    if (Date.now() - cached.timestamp < apiCache.ttl) {
+      return cached.response.clone();
+    }
+    apiCache.cache.delete(cacheKey);
+  }
+
+  // Déduplication : si une requête identique est en cours, attendre son résultat
+  if (apiCache.pendingRequests.has(cacheKey)) {
+    return apiCache.pendingRequests.get(cacheKey);
+  }
+
+  // Lancer la requête
+  const fetchPromise = fetch(url, options).then(response => {
+    apiCache.pendingRequests.delete(cacheKey);
+
+    // Mettre en cache si c'est un GET
+    if (useCache && (!options.method || options.method === 'GET')) {
+      apiCache.cache.set(cacheKey, {
+        response: response.clone(),
+        timestamp: Date.now()
+      });
+    }
+
+    return response;
+  }).catch(error => {
+    apiCache.pendingRequests.delete(cacheKey);
+    throw error;
+  });
+
+  apiCache.pendingRequests.set(cacheKey, fetchPromise);
+  return fetchPromise;
+}
+
+// =============================================================================
 // POPUPS PERSONNALISÉS
 // =============================================================================
 
@@ -106,6 +155,20 @@ document.addEventListener('DOMContentLoaded', function() {
   const profilePage = document.querySelector('#profilePage');
   const profileBack = document.querySelector('#profileBack');
   const cards = document.querySelectorAll('.card');
+
+  // Event delegation pour les clics sur les cartes de salles (optimisation mémoire)
+  if (grid) {
+    grid.addEventListener('click', function(e) {
+      const card = e.target.closest('.card');
+      if (card && !card.classList.contains('card-hidden')) {
+        const roomNumber = card.getAttribute('data-room') || card.querySelector('.room-number')?.textContent;
+        const status = card.getAttribute('data-status');
+        if (roomNumber) {
+          openRoomModal(roomNumber, status);
+        }
+      }
+    });
+  }
 
   // Gestion du scroll pour le titre
   function handleScroll() {
@@ -531,6 +594,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Gestion du scroll molette pour fermer le modal quand on est en haut
   let wheelAccumulator = 0;
   let wheelTimeout = null;
+  let rafPending = false; // Pour éviter les appels multiples à requestAnimationFrame
 
   function handleModalWheel(e) {
     const modalContent = roomModal.querySelector('.room-modal-content');
@@ -539,24 +603,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Si on est tout en haut et qu'on scroll vers le haut (deltaY négatif)
     if (modalContent.scrollTop === 0 && e.deltaY < 0) {
       e.preventDefault();
-      
+
       // Accumuler le scroll
       wheelAccumulator += Math.abs(e.deltaY);
-      
+
       // Reset après 300ms d'inactivité
       if (wheelTimeout) clearTimeout(wheelTimeout);
       wheelTimeout = setTimeout(() => {
         wheelAccumulator = 0;
       }, 300);
 
-      // Effet visuel de drag
-      const translateY = Math.min(wheelAccumulator * 0.3, 100);
-      modalContent.style.transform = `translateY(${translateY}px)`;
+      // Utiliser requestAnimationFrame pour batching des mises à jour visuelles
+      if (!rafPending) {
+        rafPending = true;
+        requestAnimationFrame(() => {
+          rafPending = false;
+          const translateY = Math.min(wheelAccumulator * 0.3, 100);
+          modalContent.style.transform = `translateY(${translateY}px)`;
 
-      // Si on a assez scrollé, fermer le modal
-      if (wheelAccumulator > 150) {
-        wheelAccumulator = 0;
-        closeRoomModal();
+          // Si on a assez scrollé, fermer le modal
+          if (wheelAccumulator > 150) {
+            wheelAccumulator = 0;
+            closeRoomModal();
+          }
+        });
       }
     }
   }
@@ -565,6 +635,8 @@ document.addEventListener('DOMContentLoaded', function() {
     startY = e.touches[0].clientY;
     isDragging = true;
   }
+
+  let touchRafPending = false;
 
   function handleTouchMove(e) {
     if (!isDragging) return;
@@ -575,10 +647,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (diffY > 0) {
       const modalContent = roomModal.querySelector('.room-modal-content');
       if (modalContent.scrollTop === 0) {
-        // Empêcher le scroll par défaut et ajouter un effet visuel
+        // Empêcher le scroll par défaut
         e.preventDefault();
-        const translateY = Math.min(diffY * 0.5, 100); // Limite à 100px
-        modalContent.style.transform = `translateY(${translateY}px)`;
+
+        // Utiliser requestAnimationFrame pour optimiser le rendu
+        if (!touchRafPending) {
+          touchRafPending = true;
+          requestAnimationFrame(() => {
+            touchRafPending = false;
+            const translateY = Math.min(diffY * 0.5, 100);
+            modalContent.style.transform = `translateY(${translateY}px)`;
+          });
+        }
       }
     }
   }
@@ -659,10 +739,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const floorMatch = currentFilters.floors.includes(roomFloor);
 
       // Afficher ou masquer la carte (doit correspondre aux filtres ET à la recherche)
+      // Utilise classList au lieu de style.display pour éviter le layout shift
       if (searchMatch && statusMatch && typeMatch && episMatch && floorMatch) {
-        card.style.display = 'flex';
+        card.classList.remove('card-hidden');
       } else {
-        card.style.display = 'none';
+        card.classList.add('card-hidden');
       }
     });
   }
@@ -694,36 +775,48 @@ document.addEventListener('DOMContentLoaded', function() {
     closeFilterModal();
   }
 
-  // Appliquer les filtres selon les checkboxes
+  // Mapping des filtres pour optimiser les requêtes DOM
+  const filterMappings = {
+    status: [
+      { id: 'filter-libre', value: 'libre' },
+      { id: 'filter-occupe', value: 'occupé' }
+    ],
+    type: [
+      { id: 'filter-classique', value: 'Salle classique' },
+      { id: 'filter-amphi', value: 'Amphithéâtre' }
+    ],
+    epis: [
+      { id: 'filter-rue', value: 'Rue' },
+      { id: 'filter-epis1', value: 'Epis 1' },
+      { id: 'filter-epis2', value: 'Epis 2' },
+      { id: 'filter-epis3', value: 'Epis 3' },
+      { id: 'filter-epis4', value: 'Epis 4' },
+      { id: 'filter-epis5', value: 'Epis 5' },
+      { id: 'filter-epis6', value: 'Epis 6' },
+      { id: 'filter-epis7', value: 'Epis 7' }
+    ],
+    floors: [
+      { id: 'filter-floor0', value: 'Rez-de-chaussée' },
+      { id: 'filter-floor1', value: '1er étage' },
+      { id: 'filter-floor2', value: '2ème étage' },
+      { id: 'filter-floor3', value: '3ème étage' },
+      { id: 'filter-floor4', value: '4ème étage' }
+    ]
+  };
+
+  // Appliquer les filtres selon les checkboxes (optimisé)
   function applyFilters() {
-    // Récupérer l'état des checkboxes de statut
-    currentFilters.status = [];
-    if (document.getElementById('filter-libre').checked) currentFilters.status.push('libre');
-    if (document.getElementById('filter-occupe').checked) currentFilters.status.push('occupé');
+    // Récupérer tous les checkboxes en une seule requête
+    const checkboxes = document.querySelectorAll('.filter-checkbox input[type="checkbox"]');
+    const checkboxMap = new Map();
+    checkboxes.forEach(cb => checkboxMap.set(cb.id, cb.checked));
 
-    // Récupérer l'état des checkboxes de type
-    currentFilters.type = [];
-    if (document.getElementById('filter-classique').checked) currentFilters.type.push('Salle classique');
-    if (document.getElementById('filter-amphi').checked) currentFilters.type.push('Amphithéâtre');
-
-    // Récupérer l'état des checkboxes d'Epis
-    currentFilters.epis = [];
-    if (document.getElementById('filter-rue').checked) currentFilters.epis.push('Rue');
-    if (document.getElementById('filter-epis1').checked) currentFilters.epis.push('Epis 1');
-    if (document.getElementById('filter-epis2').checked) currentFilters.epis.push('Epis 2');
-    if (document.getElementById('filter-epis3').checked) currentFilters.epis.push('Epis 3');
-    if (document.getElementById('filter-epis4').checked) currentFilters.epis.push('Epis 4');
-    if (document.getElementById('filter-epis5').checked) currentFilters.epis.push('Epis 5');
-    if (document.getElementById('filter-epis6').checked) currentFilters.epis.push('Epis 6');
-    if (document.getElementById('filter-epis7').checked) currentFilters.epis.push('Epis 7');
-
-    // Récupérer l'état des checkboxes d'Étage
-    currentFilters.floors = [];
-    if (document.getElementById('filter-floor0').checked) currentFilters.floors.push('Rez-de-chaussée');
-    if (document.getElementById('filter-floor1').checked) currentFilters.floors.push('1er étage');
-    if (document.getElementById('filter-floor2').checked) currentFilters.floors.push('2ème étage');
-    if (document.getElementById('filter-floor3').checked) currentFilters.floors.push('3ème étage');
-    if (document.getElementById('filter-floor4').checked) currentFilters.floors.push('4ème étage');
+    // Appliquer les mappings
+    for (const [filterKey, mappings] of Object.entries(filterMappings)) {
+      currentFilters[filterKey] = mappings
+        .filter(m => checkboxMap.get(m.id))
+        .map(m => m.value);
+    }
 
     // Appliquer les filtres et fermer le modal
     filterRooms();
@@ -798,6 +891,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Gestion du scroll molette pour fermer le modal des filtres
   let filterWheelAccumulator = 0;
   let filterWheelTimeout = null;
+  let filterRafPending = false;
 
   function handleFilterModalWheel(e) {
     const modalContent = filterModal.querySelector('.filter-modal-content');
@@ -805,20 +899,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (modalContent.scrollTop === 0 && e.deltaY < 0) {
       e.preventDefault();
-      
+
       filterWheelAccumulator += Math.abs(e.deltaY);
-      
+
       if (filterWheelTimeout) clearTimeout(filterWheelTimeout);
       filterWheelTimeout = setTimeout(() => {
         filterWheelAccumulator = 0;
       }, 300);
 
-      const translateY = Math.min(filterWheelAccumulator * 0.3, 100);
-      modalContent.style.transform = `translateY(${translateY}px)`;
+      // Utiliser requestAnimationFrame pour batching
+      if (!filterRafPending) {
+        filterRafPending = true;
+        requestAnimationFrame(() => {
+          filterRafPending = false;
+          const translateY = Math.min(filterWheelAccumulator * 0.3, 100);
+          modalContent.style.transform = `translateY(${translateY}px)`;
 
-      if (filterWheelAccumulator > 150) {
-        filterWheelAccumulator = 0;
-        closeFilterModal();
+          if (filterWheelAccumulator > 150) {
+            filterWheelAccumulator = 0;
+            closeFilterModal();
+          }
+        });
       }
     }
   }
@@ -827,6 +928,8 @@ document.addEventListener('DOMContentLoaded', function() {
     filterStartY = e.touches[0].clientY;
     isFilterDragging = true;
   }
+
+  let filterTouchRafPending = false;
 
   function handleFilterTouchMove(e) {
     if (!isFilterDragging) return;
@@ -837,8 +940,16 @@ document.addEventListener('DOMContentLoaded', function() {
       const modalContent = filterModal.querySelector('.filter-modal-content');
       if (modalContent.scrollTop === 0) {
         e.preventDefault();
-        const translateY = Math.min(diffY * 0.5, 100);
-        modalContent.style.transform = `translateY(${translateY}px)`;
+
+        // Utiliser requestAnimationFrame pour optimiser
+        if (!filterTouchRafPending) {
+          filterTouchRafPending = true;
+          requestAnimationFrame(() => {
+            filterTouchRafPending = false;
+            const translateY = Math.min(diffY * 0.5, 100);
+            modalContent.style.transform = `translateY(${translateY}px)`;
+          });
+        }
       }
     }
   }
@@ -872,15 +983,23 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('filterReset').addEventListener('click', resetFilters);
   document.getElementById('filterApply').addEventListener('click', applyFilters);
 
-  // Event listener pour la barre de recherche
+  // Fonction utilitaire de debounce pour optimiser les performances
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+
+  // Event listener pour la barre de recherche avec debounce
   const searchInput = document.querySelector('.search input[type="text"]');
   if (searchInput) {
-    // Recherche en temps réel pendant la saisie
-    searchInput.addEventListener('input', function() {
-      filterRooms();
-    });
+    // Recherche en temps réel pendant la saisie (debounced 150ms)
+    const debouncedFilter = debounce(filterRooms, 150);
+    searchInput.addEventListener('input', debouncedFilter);
 
-    // Recherche lors de l'appui sur Entrée
+    // Recherche immédiate lors de l'appui sur Entrée
     searchInput.addEventListener('keypress', function(e) {
       if (e.key === 'Enter') {
         filterRooms();
@@ -2001,56 +2120,64 @@ document.addEventListener('DOMContentLoaded', function() {
   window.openReservationModal = openReservationModal;
 
   // Fonction pour afficher les salles dans le DOM
+  // Optimisée pour mettre à jour uniquement les cartes qui changent (évite CLS)
   function renderRooms() {
     const grid = document.getElementById('roomsGrid');
-    grid.innerHTML = '';
+    const existingCards = grid.querySelectorAll('.card');
+    const existingCardsMap = new Map();
+
+    // Indexer les cartes existantes par numéro de salle
+    existingCards.forEach(card => {
+      const roomNumber = card.querySelector('.room-number')?.textContent;
+      if (roomNumber) {
+        existingCardsMap.set(roomNumber, card);
+      }
+    });
 
     Object.keys(roomData).forEach(roomNumber => {
       const status = roomStatuses[roomNumber] || 'libre';
+      const existingCard = existingCardsMap.get(roomNumber);
 
+      if (existingCard) {
+        // Mise à jour ciblée : seulement si le statut a changé
+        const currentStatus = existingCard.getAttribute('data-status');
+        if (currentStatus !== status) {
+          existingCard.setAttribute('data-status', status);
+          existingCard.querySelector('.room-state').textContent = status;
+        }
+        existingCardsMap.delete(roomNumber); // Marquer comme traité
+      } else {
+        // Nouvelle carte (sans event listener individuel - utilise event delegation)
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.setAttribute('data-status', status);
+        card.setAttribute('data-room', roomNumber);
+        card.innerHTML = `
+          <div class="room-number">${roomNumber}</div>
+          <div class="room-state">${status}</div>
+        `;
 
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.setAttribute('data-status', status);
-      card.innerHTML = `
-        <div class="room-number">${roomNumber}</div>
-        <div class="room-state">${status}</div>
-      `;
-
-      // Ajouter l'event listener pour ouvrir le modal de détails
-      card.addEventListener('click', function() {
-        openRoomModal(roomNumber, status);
-      });
-
-      grid.appendChild(card);
+        grid.appendChild(card);
+      }
     });
+
+    // Supprimer les cartes qui n'existent plus dans roomData
+    existingCardsMap.forEach(card => card.remove());
 
     // Appliquer les filtres après avoir rendu les salles
     filterRooms();
   }
 
-  // Fonction pour synchroniser les checkboxes avec les filtres par défaut
+  // Fonction pour synchroniser les checkboxes avec les filtres par défaut (optimisée)
   function initializeFilters() {
-    // Synchroniser les checkboxes de statut
-    document.getElementById('filter-libre').checked = currentFilters.status.includes('libre');
-    document.getElementById('filter-occupe').checked = currentFilters.status.includes('occupé');
-
-    // Synchroniser les checkboxes d'Epis
-    document.getElementById('filter-rue').checked = currentFilters.epis.includes('Rue');
-    document.getElementById('filter-epis1').checked = currentFilters.epis.includes('Epis 1');
-    document.getElementById('filter-epis2').checked = currentFilters.epis.includes('Epis 2');
-    document.getElementById('filter-epis3').checked = currentFilters.epis.includes('Epis 3');
-    document.getElementById('filter-epis4').checked = currentFilters.epis.includes('Epis 4');
-    document.getElementById('filter-epis5').checked = currentFilters.epis.includes('Epis 5');
-    document.getElementById('filter-epis6').checked = currentFilters.epis.includes('Epis 6');
-    document.getElementById('filter-epis7').checked = currentFilters.epis.includes('Epis 7');
-
-    // Synchroniser les checkboxes d'étages
-    document.getElementById('filter-floor0').checked = currentFilters.floors.includes('Rez-de-chaussée');
-    document.getElementById('filter-floor1').checked = currentFilters.floors.includes('1er étage');
-    document.getElementById('filter-floor2').checked = currentFilters.floors.includes('2ème étage');
-    document.getElementById('filter-floor3').checked = currentFilters.floors.includes('3ème étage');
-    document.getElementById('filter-floor4').checked = currentFilters.floors.includes('4ème étage');
+    for (const [filterKey, mappings] of Object.entries(filterMappings)) {
+      mappings.forEach(({ id, value }) => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) {
+          checkbox.checked = currentFilters[filterKey].includes(value);
+        }
+      });
+    }
   }
 
   // Initialiser l'état

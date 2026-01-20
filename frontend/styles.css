@@ -152,10 +152,12 @@ body.modal-open {
   justify-content: center;
   padding: 60px 20px;
   gap: 16px;
+  min-height: 400px; /* Même hauteur que la grille pour éviter le CLS */
 }
 
 .rooms-loader.hidden {
   display: none;
+  min-height: 0;
 }
 
 .loader-spinner {
@@ -187,6 +189,8 @@ body.modal-open {
   gap: var(--gap);
   padding-bottom: 80px; /* to give space at bottom */
   overflow:auto;
+  min-height: 400px; /* Stabilise le layout lors du chargement */
+  contain: layout style; /* Optimisation du rendu */
 }
 
 /* Card */
@@ -200,6 +204,13 @@ body.modal-open {
   gap: 6px;
   border: 1px solid rgba(255, 255, 255, 0.04);
   cursor: pointer;
+  min-height: 76px; /* Stabilise le layout */
+  contain: layout style paint; /* Optimisation du rendu */
+}
+
+/* Masquer les cartes filtrées - display:none est OK car c'est une action utilisateur */
+.card.card-hidden {
+  display: none;
 }
 
 .room-number{
@@ -695,7 +706,19 @@ body.modal-open {
 .schedule-item.schedule-current {
   background: rgba(255, 106, 26, 0.15);
   border-left-color: var(--accent);
+  position: relative;
+}
+
+/* Animation pulse optimisée GPU avec pseudo-élément */
+.schedule-item.schedule-current::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 106, 26, 0.15);
+  border-radius: inherit;
   animation: pulse 2s infinite;
+  pointer-events: none;
+  will-change: opacity;
 }
 
 .schedule-item.schedule-current .schedule-time {
@@ -709,10 +732,10 @@ body.modal-open {
 
 @keyframes pulse {
   0%, 100% {
-    background: rgba(255, 106, 26, 0.15);
+    opacity: 0;
   }
   50% {
-    background: rgba(255, 106, 26, 0.25);
+    opacity: 1;
   }
 }
 
