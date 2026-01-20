@@ -1541,6 +1541,18 @@ document.addEventListener('DOMContentLoaded', function() {
       console.warn('⚠️ Mode dégradé : réservations non disponibles');
     }
 
+    // Identifier l'utilisateur dans Rybbit Analytics
+    if (window.rybbit && currentUser) {
+      try {
+        window.rybbit.identify(currentUser.email || currentUser.id, {
+          name: currentUser.name,
+          email: currentUser.email
+        });
+      } catch (e) {
+        console.warn('Rybbit identify error:', e);
+      }
+    }
+
     try {
       updateReservationsDisplay();
     } catch (error) {
@@ -1575,6 +1587,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       } catch (error) {
         console.warn('Erreur lors de la déconnexion backend:', error);
+      }
+    }
+
+    // Supprimer l'identification Rybbit Analytics
+    if (window.rybbit && window.rybbit.clearUserId) {
+      try {
+        window.rybbit.clearUserId();
+      } catch (e) {
+        console.warn('Rybbit clearUserId error:', e);
       }
     }
 
