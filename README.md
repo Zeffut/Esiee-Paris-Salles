@@ -160,10 +160,6 @@ Ce projet est développé et maintenu par Zeffut pour un usage personnel à l'ES
 - Frontend responsive sans framework
 - CI/CD automatisé via Vercel et Dokploy
 
-## Licence
-
-Projet personnel - Usage privé
-
 ## Contact
 
 Pour toute question : [portfolio.zeffut.fr](https://portfolio.zeffut.fr)
