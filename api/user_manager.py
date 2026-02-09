@@ -171,16 +171,19 @@ class ESIEEUserManager:
         """Générer un ID utilisateur basé sur l'email"""
         return hashlib.sha256(email.encode()).hexdigest()[:16]
 
-    def create_session(self, user_id: str, session_duration_hours: int = 168) -> str:  # 7 jours par défaut
+    def create_session(self, user_id: str, session_duration_hours: int = 168) -> tuple:  # 7 jours par défaut
         """
         Créer une session pour un utilisateur avec un token cryptographiquement sécurisé
+        Retourne (session_token, csrf_token)
         """
         # Utiliser secrets.token_urlsafe() au lieu de SHA256 prévisible
         session_token = secrets.token_urlsafe(48)  # 48 bytes = 64 caractères base64
+        csrf_token = secrets.token_urlsafe(32)  # Token CSRF distinct
         expires_at = datetime.now() + timedelta(hours=session_duration_hours)
 
         session_data = {
             "user_id": user_id,
+            "csrf_token": csrf_token,
             "created_at": datetime.now().isoformat(),
             "expires_at": expires_at.isoformat(),
             "last_activity": datetime.now().isoformat(),
@@ -190,7 +193,7 @@ class ESIEEUserManager:
         self.users_data["sessions"][session_token] = session_data
         self._save_users()
 
-        return session_token
+        return session_token, csrf_token
 
     def validate_session(self, session_token: str) -> Optional[Dict]:
         """

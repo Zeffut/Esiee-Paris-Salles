@@ -29,6 +29,86 @@ rate_limit_storage = defaultdict(list)
 rate_limit_lock = threading.Lock()
 
 
+def rate_limit(max_requests=100, window_seconds=3600):
+    """
+    Décorateur pour limiter le nombre de requêtes par IP
+    Par défaut: 100 requêtes par heure
+    """
+    from functools import wraps
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Récupérer l'IP du client
+            client_ip = request.remote_addr
+            if request.headers.get('X-Forwarded-For'):
+                client_ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+
+            current_time = datetime.now()
+
+            with rate_limit_lock:
+                # Nettoyer les anciennes requêtes
+                rate_limit_storage[client_ip] = [
+                    req_time for req_time in rate_limit_storage[client_ip]
+                    if current_time - req_time < timedelta(seconds=window_seconds)
+                ]
+
+                # Vérifier si la limite est atteinte
+                if len(rate_limit_storage[client_ip]) >= max_requests:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Trop de requêtes. Veuillez réessayer plus tard.'
+                    }), 429
+
+                # Ajouter la requête actuelle
+                rate_limit_storage[client_ip].append(current_time)
+
+            return f(*args, **kwargs)
+
+        return decorated_function
+    return decorator
+
+
+# Nettoyage périodique du rate_limit_storage pour éviter la fuite mémoire
+def cleanup_rate_limit_storage():
+    """Nettoie les entrées expirées du rate_limit_storage"""
+    with rate_limit_lock:
+        current_time = datetime.now()
+        expired_ips = []
+        for ip, timestamps in rate_limit_storage.items():
+            rate_limit_storage[ip] = [
+                t for t in timestamps
+                if current_time - t < timedelta(hours=1)
+            ]
+            if not rate_limit_storage[ip]:
+                expired_ips.append(ip)
+        for ip in expired_ips:
+            del rate_limit_storage[ip]
+
+# Lancer le nettoyage toutes les 10 minutes
+def start_rate_limit_cleanup():
+    def cleanup_loop():
+        while True:
+            import time
+            time.sleep(600)  # 10 minutes
+            cleanup_rate_limit_storage()
+    cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
+    cleanup_thread.start()
+
+start_rate_limit_cleanup()
+
+
+# Headers de sécurité sur toutes les réponses API
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    return response
+
+
 def get_session_token():
     """
     Récupère le token de session depuis les cookies ou le header Authorization
@@ -730,10 +810,64 @@ def get_cache_status():
             'error': str(e)
         }), 500
 
+def csrf_protected(f):
+    """
+    Décorateur pour protéger les endpoints contre les attaques CSRF
+    Vérifie que le token CSRF est présent et valide
+    Le session token est lu depuis le header Authorization: Bearer (pas un cookie)
+    Les requêtes GET/HEAD/OPTIONS ne sont pas vérifiées (safe methods)
+    """
+    from functools import wraps
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Ne pas vérifier CSRF pour les méthodes safe (GET, HEAD, OPTIONS)
+        if request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return f(*args, **kwargs)
+
+        # Récupérer le token de session depuis Authorization: Bearer
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify({
+                'success': False,
+                'error': 'Session manquante'
+            }), 401
+
+        session_token = auth_header[7:]  # Retirer "Bearer "
+
+        # Récupérer le token CSRF depuis le header
+        csrf_token = request.headers.get('X-CSRF-Token')
+        if not csrf_token:
+            return jsonify({
+                'success': False,
+                'error': 'Token CSRF manquant'
+            }), 403
+
+        # Valider le token CSRF
+        if not user_manager.validate_csrf_token(session_token, csrf_token):
+            return jsonify({
+                'success': False,
+                'error': 'Token CSRF invalide'
+            }), 403
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
 @app.route('/api/cache/refresh', methods=['POST'])
+@rate_limit(max_requests=30, window_seconds=3600)  # 30 requêtes / heure (admins derrière même NAT)
+@csrf_protected
 def refresh_cache():
-    """Endpoint pour forcer le rafraîchissement du cache"""
+    """Endpoint pour forcer le rafraîchissement du cache (admin uniquement)"""
     try:
+        # Vérifier que l'utilisateur est authentifié et autorisé
+        user = get_current_user_from_request()
+        if not user or user.get('email') != 'tom77ds@gmail.com':
+            return jsonify({
+                'success': False,
+                'error': 'Accès non autorisé'
+            }), 403
+
         success = force_cache_refresh()
 
         if success:
@@ -823,82 +957,8 @@ def get_current_user_from_request():
     session_token = auth_header[7:]  # Retirer "Bearer "
     return user_manager.validate_session(session_token)
 
-def csrf_protected(f):
-    """
-    Décorateur pour protéger les endpoints contre les attaques CSRF
-    Vérifie que le token CSRF est présent et valide
-    """
-    from functools import wraps
-
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Récupérer le token de session
-        session_token = request.cookies.get('esiee_auth_token')
-        if not session_token:
-            return jsonify({
-                'success': False,
-                'error': 'Session manquante'
-            }), 401
-
-        # Récupérer le token CSRF depuis le header
-        csrf_token = request.headers.get('X-CSRF-Token')
-        if not csrf_token:
-            return jsonify({
-                'success': False,
-                'error': 'Token CSRF manquant'
-            }), 403
-
-        # Valider le token CSRF
-        if not user_manager.validate_csrf_token(session_token, csrf_token):
-            return jsonify({
-                'success': False,
-                'error': 'Token CSRF invalide'
-            }), 403
-
-        return f(*args, **kwargs)
-
-    return decorated_function
-
-def rate_limit(max_requests=100, window_seconds=3600):
-    """
-    Décorateur pour limiter le nombre de requêtes par IP
-    Par défaut: 100 requêtes par heure
-    """
-    from functools import wraps
-
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # Récupérer l'IP du client
-            client_ip = request.remote_addr
-            if request.headers.get('X-Forwarded-For'):
-                client_ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
-
-            current_time = datetime.now()
-
-            with rate_limit_lock:
-                # Nettoyer les anciennes requêtes
-                rate_limit_storage[client_ip] = [
-                    req_time for req_time in rate_limit_storage[client_ip]
-                    if current_time - req_time < timedelta(seconds=window_seconds)
-                ]
-
-                # Vérifier si la limite est atteinte
-                if len(rate_limit_storage[client_ip]) >= max_requests:
-                    return jsonify({
-                        'success': False,
-                        'error': 'Trop de requêtes. Veuillez réessayer plus tard.'
-                    }), 429
-
-                # Ajouter la requête actuelle
-                rate_limit_storage[client_ip].append(current_time)
-
-            return f(*args, **kwargs)
-
-        return decorated_function
-    return decorator
-
 @app.route('/api/auth/login', methods=['POST'])
+@rate_limit(max_requests=200, window_seconds=900)  # 200 requêtes / 15 min (NAT partagé ~200 users)
 def auth_login():
     """
     Connexion utilisateur via Google OAuth
@@ -929,7 +989,7 @@ def auth_login():
             }), 403
 
         # Créer une session
-        session_token = user_manager.create_session(user['user_id'])
+        session_token, csrf_token = user_manager.create_session(user['user_id'])
 
         # Nettoyer les sessions expirées
         user_manager.cleanup_expired_sessions()
@@ -950,6 +1010,7 @@ def auth_login():
                 })
             },
             'session_token': session_token,
+            'csrf_token': csrf_token,
             'expires_in': 168 * 3600  # 7 jours en secondes
         })
 
@@ -961,6 +1022,8 @@ def auth_login():
         }), 500
 
 @app.route('/api/auth/logout', methods=['POST'])
+@rate_limit(max_requests=200, window_seconds=3600)  # 200 requêtes / heure
+@csrf_protected
 def auth_logout():
     """
     Déconnexion utilisateur
@@ -1116,6 +1179,8 @@ def admin_get_users():
         }), 500
 
 @app.route('/api/admin/whitelist', methods=['GET', 'POST', 'DELETE'])
+@rate_limit(max_requests=100, window_seconds=3600)  # 100 requêtes / heure
+@csrf_protected
 def admin_whitelist():
     """
     Gestion de la whitelist des emails (admin uniquement)
@@ -1170,6 +1235,8 @@ def admin_whitelist():
         }), 500
 
 @app.route('/api/reservations', methods=['POST'])
+@rate_limit(max_requests=500, window_seconds=3600)  # 500 requêtes / heure (200 users × ~2-3 résa/h)
+@csrf_protected
 def create_reservation():
     """Créer une nouvelle réservation"""
     try:
@@ -1325,6 +1392,8 @@ def create_reservation():
         }), 500
 
 @app.route('/api/reservations/<reservation_id>', methods=['DELETE'])
+@rate_limit(max_requests=500, window_seconds=3600)  # 500 requêtes / heure
+@csrf_protected
 def cancel_reservation(reservation_id):
     """Annuler une réservation"""
     try:
@@ -1414,7 +1483,7 @@ def get_active_reservations():
                             'start_time': reservation['start_time'],
                             'end_time': reservation['end_time'],
                             'status': reservation['status'],
-                            'user_name': user.get('name', 'Utilisateur')
+                            'user_name': 'Réservé'
                         })
 
         return jsonify({

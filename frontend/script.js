@@ -12,6 +12,13 @@ if (reloadCount > 5) {
 // =============================================================================
 // CACHE ET DÉDUPLICATION DES REQUÊTES API
 // =============================================================================
+
+// Utilitaire : échapper les caractères HTML pour éviter les injections XSS
+function escapeHTML(str) {
+  if (typeof str !== 'string') return str;
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 const apiCache = {
   pendingRequests: new Map(), // Requêtes en cours (pour déduplication)
   cache: new Map(),           // Cache des réponses
@@ -445,7 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
             todayReservations.push({
               start: new Date(reservation.start_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
               end: new Date(reservation.end_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-              course: `🔒 Réservation de ${reservation.user_name || 'Utilisateur'}`,
+              course: `🔒 ${reservation.user_name || 'Réservé'}`,
               isReservation: true
             });
           }
@@ -534,8 +541,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         scheduleHTML += `
           <div class="schedule-item ${isCurrentCourse ? 'schedule-current' : ''}">
-            <div class="schedule-time">${course.start} - ${course.end}</div>
-            <div class="schedule-course">${course.course}${isCurrentCourse ? ' (en cours)' : ''}</div>
+            <div class="schedule-time">${escapeHTML(course.start)} - ${escapeHTML(course.end)}</div>
+            <div class="schedule-course">${escapeHTML(course.course)}${isCurrentCourse ? ' (en cours)' : ''}</div>
           </div>
         `;
       });
@@ -1184,6 +1191,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Utilisateur connecté et token de session
   let currentUser = null;
   let authToken = null;
+  let csrfToken = null;
   let isLoggingIn = false; // Protection contre les appels multiples
   let googleAuthInitialized = false; // Protection contre les initialisations multiples
   let lastShowLoggedInStateTime = 0; // Protection contre doubles appels showLoggedInState
@@ -1294,9 +1302,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (result.success) {
           currentUser = result.user;
           authToken = result.session_token;
+          csrfToken = result.csrf_token || null;
 
           localStorage.setItem('user', JSON.stringify(currentUser));
           localStorage.setItem('authToken', authToken);
+          if (csrfToken) localStorage.setItem('csrfToken', csrfToken);
           localStorage.setItem('lastLoginTime', Date.now().toString());
 
           showLoggedInState();
@@ -1315,6 +1325,7 @@ document.addEventListener('DOMContentLoaded', function() {
         token: accessToken
       };
       authToken = null;
+      csrfToken = null;
 
       localStorage.setItem('user', JSON.stringify(currentUser));
       localStorage.setItem('lastLoginTime', Date.now().toString());
@@ -1348,9 +1359,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (result.success) {
           currentUser = result.user;
           authToken = result.session_token;
+          csrfToken = result.csrf_token || null;
 
           localStorage.setItem('user', JSON.stringify(currentUser));
           localStorage.setItem('authToken', authToken);
+          if (csrfToken) localStorage.setItem('csrfToken', csrfToken);
           localStorage.setItem('lastLoginTime', Date.now().toString());
 
           isLoggingIn = false;
@@ -1370,6 +1383,7 @@ document.addEventListener('DOMContentLoaded', function() {
         token: response.credential
       };
       authToken = null;
+      csrfToken = null;
 
       localStorage.setItem('user', JSON.stringify(currentUser));
       localStorage.setItem('lastLoginTime', Date.now().toString());
@@ -1430,12 +1444,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('authToken');
+    const storedCsrfToken = localStorage.getItem('csrfToken');
     const lastLoginTime = localStorage.getItem('lastLoginTime');
 
     if (storedUser) {
       try {
         currentUser = JSON.parse(storedUser);
         authToken = storedToken;
+        csrfToken = storedCsrfToken;
 
         // Vérifier l'âge de la session (7 jours max)
         const now = Date.now();
@@ -1578,12 +1594,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Si on a un token backend, informer le serveur de la déconnexion
     if (authToken) {
       try {
+        const logoutHeaders = {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        };
+        if (csrfToken) logoutHeaders['X-CSRF-Token'] = csrfToken;
+
         await fetch(`${API_BASE_URL}/auth/logout`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
+          headers: logoutHeaders
         });
       } catch (error) {
         console.warn('Erreur lors de la déconnexion backend:', error);
@@ -1602,9 +1621,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Supprimer les données de localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('authToken');
+    localStorage.removeItem('csrfToken');
     localStorage.removeItem('lastLoginTime');
     currentUser = null;
     authToken = null;
+    csrfToken = null;
 
     // Déconnecter de Google (si disponible)
     if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
@@ -1630,10 +1651,12 @@ document.addEventListener('DOMContentLoaded', function() {
           </button>
         </div>
         <div class="message-body">
-          <p>${message}</p>
+          <p></p>
         </div>
       </div>
     `;
+    // Injecter le message en textContent pour éviter les XSS
+    errorModal.querySelector('.message-body p').textContent = message;
 
     document.body.appendChild(errorModal);
     document.body.classList.add('modal-open');
@@ -1765,8 +1788,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     card.innerHTML = `
       <div class="reservation-header">
-        <h4 class="reservation-room">Salle ${reservation.room_number}</h4>
-        <span class="reservation-status ${status}">${statusText}</span>
+        <h4 class="reservation-room">Salle ${escapeHTML(reservation.room_number)}</h4>
+        <span class="reservation-status ${status}">${escapeHTML(statusText)}</span>
       </div>
       <div class="reservation-details">
         <div class="reservation-time">
@@ -1774,7 +1797,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
             <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2"/>
           </svg>
-          <span>${dateStr}</span>
+          <span>${escapeHTML(dateStr)}</span>
         </div>
         <div class="reservation-time">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1783,12 +1806,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2"/>
             <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
           </svg>
-          <span>${timeStr}</span>
+          <span>${escapeHTML(timeStr)}</span>
         </div>
       </div>
       ${status !== 'past' ? `
         <div class="reservation-actions">
-          <button class="reservation-btn cancel" onclick="cancelReservation('${reservation.id}')">
+          <button class="reservation-btn cancel" onclick="cancelReservation('${escapeHTML(reservation.id)}')">
             Annuler
           </button>
         </div>
@@ -1825,12 +1848,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     try {
+      const deleteHeaders = {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      };
+      if (csrfToken) deleteHeaders['X-CSRF-Token'] = csrfToken;
+
       const response = await fetch(`${API_BASE_URL}/reservations/${reservationId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
+        headers: deleteHeaders
       });
 
       const data = await response.json();
@@ -2072,12 +2098,15 @@ document.addEventListener('DOMContentLoaded', function() {
       const date = today.toISOString().split('T')[0];
 
       try {
+        const reserveHeaders = {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        };
+        if (csrfToken) reserveHeaders['X-CSRF-Token'] = csrfToken;
+
         const response = await fetch(`${API_BASE_URL}/reservations`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          },
+          headers: reserveHeaders,
           body: JSON.stringify({
             room_number: selectedRoomNumber,
             date: date,
@@ -2174,8 +2203,8 @@ document.addEventListener('DOMContentLoaded', function() {
         card.setAttribute('data-status', status);
         card.setAttribute('data-room', roomNumber);
         card.innerHTML = `
-          <div class="room-number">${roomNumber}</div>
-          <div class="room-state">${status}</div>
+          <div class="room-number">${escapeHTML(roomNumber)}</div>
+          <div class="room-state">${escapeHTML(status)}</div>
         `;
 
         grid.appendChild(card);
