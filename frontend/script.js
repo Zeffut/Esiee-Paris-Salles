@@ -1589,10 +1589,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const profileNotLogged = document.getElementById('profileNotLogged');
     const profileLogged = document.getElementById('profileLogged');
 
-    if (!profileNotLogged || !profileLogged) {
-      console.error('❌ Éléments de profil non trouvés');
-      return;
-    }
+    if (!profileNotLogged || !profileLogged) return;
 
     // Masquer la page de connexion
     profileNotLogged.style.display = 'none';
