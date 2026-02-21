@@ -928,7 +928,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Event listener pour le scroll qui agrandit le modal
-  const roomModalContent = roomModal.querySelector('.room-modal-content');
+  const roomModalContent = roomModal ? roomModal.querySelector('.room-modal-content') : null;
   if (roomModalContent) {
     roomModalContent.addEventListener('scroll', handleModalScroll, { passive: true });
     roomModalContent.addEventListener('wheel', handleModalWheel, { passive: false });
@@ -1037,19 +1037,23 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Event listeners pour le swipe et scroll sur le modal des filtres
-  filterModal.addEventListener('touchstart', handleFilterTouchStart, { passive: false });
-  filterModal.addEventListener('touchmove', handleFilterTouchMove, { passive: false });
-  filterModal.addEventListener('touchend', handleFilterTouchEnd, { passive: false });
+  if (filterModal) {
+    filterModal.addEventListener('touchstart', handleFilterTouchStart, { passive: false });
+    filterModal.addEventListener('touchmove', handleFilterTouchMove, { passive: false });
+    filterModal.addEventListener('touchend', handleFilterTouchEnd, { passive: false });
 
-  const filterModalContent = filterModal.querySelector('.filter-modal-content');
-  if (filterModalContent) {
-    filterModalContent.addEventListener('scroll', handleFilterModalScroll, { passive: true });
-    filterModalContent.addEventListener('wheel', handleFilterModalWheel, { passive: false });
+    const filterModalContent = filterModal.querySelector('.filter-modal-content');
+    if (filterModalContent) {
+      filterModalContent.addEventListener('scroll', handleFilterModalScroll, { passive: true });
+      filterModalContent.addEventListener('wheel', handleFilterModalWheel, { passive: false });
+    }
   }
 
   // Event listeners pour les boutons de filtre
-  document.getElementById('filterReset').addEventListener('click', resetFilters);
-  document.getElementById('filterApply').addEventListener('click', applyFilters);
+  const filterResetBtn = document.getElementById('filterReset');
+  const filterApplyBtn = document.getElementById('filterApply');
+  if (filterResetBtn) filterResetBtn.addEventListener('click', resetFilters);
+  if (filterApplyBtn) filterApplyBtn.addEventListener('click', applyFilters);
 
   // Fonction utilitaire de debounce pour optimiser les performances
   function debounce(func, wait) {
