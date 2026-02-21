@@ -1,4 +1,25 @@
 // =============================================================================
+// THEME (appliqué immédiatement pour éviter le flash de thème)
+// =============================================================================
+(function() {
+  // Migration : efface toute préférence stockée avec l'ancien système (v1)
+  if (localStorage.getItem('themeVersion') !== '2') {
+    localStorage.removeItem('theme');
+    localStorage.setItem('themeVersion', '2');
+  }
+
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light' || saved === 'dark') {
+    document.documentElement.setAttribute('data-theme', saved);
+  } else {
+    // null ou 'auto' → préférence système
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    if (!saved) localStorage.setItem('theme', 'auto');
+  }
+})();
+
+// =============================================================================
 // TRACKING DES RECHARGES (pour détecter les boucles)
 // =============================================================================
 const reloadCount = parseInt(sessionStorage.getItem('reloadCount') || '0');
@@ -151,6 +172,8 @@ window.customConfirm = customConfirm;
 
 document.addEventListener('DOMContentLoaded', function() {
 
+  const isProfilePage = document.body.dataset.page === 'profile';
+
   const titleSection = document.querySelector('.title-section');
   const titleInline = document.querySelector('.title-inline');
   const grid = document.querySelector('.grid');
@@ -159,9 +182,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const roomModal = document.querySelector('#roomModal');
   const filterBtn = document.querySelector('#filterBtn');
   const filterModal = document.querySelector('#filterModal');
-  const profilePage = document.querySelector('#profilePage');
-  const profileBack = document.querySelector('#profileBack');
-  const cards = document.querySelectorAll('.card');
 
   // Event delegation pour les clics sur les cartes de salles (optimisation mémoire)
   if (grid) {
@@ -179,6 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Gestion du scroll pour le titre
   function handleScroll() {
+    if (!titleSection) return;
     const titleSectionRect = titleSection.getBoundingClientRect();
 
     // Si le titre principal sort de l'écran (position négative)
@@ -246,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Salles à 4 chiffres : 2ème caractère = étage
       const secondDigit = roomNumber.charAt(1);
       switch(secondDigit) {
-        case '0': return 'Rez-de-chaussée';
+        case '0': return 'Sous-sol';
         case '1': return '1er étage';
         case '2': return '2ème étage';
         case '3': return '3ème étage';
@@ -368,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function() {
     status: ['libre'],
     type: ['Salle classique', 'Amphithéâtre'],
     epis: ['Rue', 'Epis 1', 'Epis 2', 'Epis 3', 'Epis 4'],
-    floors: ['Rez-de-chaussée', '1er étage', '2ème étage', '3ème étage', '4ème étage']
+    floors: ['Sous-sol', '1er étage', '2ème étage', '3ème étage', '4ème étage']
   };
 
   // Variable pour stocker le numéro de salle actuel dans le modal
@@ -761,7 +782,7 @@ document.addEventListener('DOMContentLoaded', function() {
       status: ['libre'],
       type: ['Salle classique', 'Amphithéâtre'],
       epis: ['Rue', 'Epis 1', 'Epis 2', 'Epis 3', 'Epis 4'],
-      floors: ['Rez-de-chaussée', '1er étage', '2ème étage', '3ème étage', '4ème étage']
+      floors: ['Sous-sol', '1er étage', '2ème étage', '3ème étage', '4ème étage']
     };
 
     // Remettre toutes les checkboxes à checked
@@ -803,7 +824,7 @@ document.addEventListener('DOMContentLoaded', function() {
       { id: 'filter-epis7', value: 'Epis 7' }
     ],
     floors: [
-      { id: 'filter-floor0', value: 'Rez-de-chaussée' },
+      { id: 'filter-floor0', value: 'Sous-sol' },
       { id: 'filter-floor1', value: '1er étage' },
       { id: 'filter-floor2', value: '2ème étage' },
       { id: 'filter-floor3', value: '3ème étage' },
@@ -830,21 +851,60 @@ document.addEventListener('DOMContentLoaded', function() {
     closeFilterModal();
   }
 
-  // Gestion de la page profil
-  function openProfilePage() {
-    profilePage.classList.add('open');
-    document.body.classList.add('modal-open');
-  }
-
-  function closeProfilePage() {
-    profilePage.classList.remove('open');
-    document.body.classList.remove('modal-open');
-  }
-
   // Event listeners
   hamburger.addEventListener('click', toggleMenu);
   menuOverlay.addEventListener('click', closeMenu);
-  roomModal.addEventListener('click', closeRoomModalOverlay);
+  if (roomModal) roomModal.addEventListener('click', closeRoomModalOverlay);
+
+  // Suivre les changements de préférence système en temps réel (si thème = auto)
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    const saved = localStorage.getItem('theme');
+    if (!saved || saved === 'auto') {
+      document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    }
+  });
+
+  // --- Settings page ---
+  const settingsPage = document.getElementById('settingsPage');
+  const settingsBack = document.getElementById('settingsBack');
+  const settingsBtn = document.getElementById('settingsBtn');
+
+  function openSettingsPage() {
+    if (settingsPage) settingsPage.classList.add('open');
+    syncThemeSelector();
+  }
+
+  function closeSettingsPage() {
+    if (settingsPage) settingsPage.classList.remove('open');
+  }
+
+  function applyThemePref(value) {
+    if (value === 'auto') {
+      localStorage.setItem('theme', 'auto');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+      localStorage.setItem('theme', value);
+      document.documentElement.setAttribute('data-theme', value);
+    }
+    syncThemeSelector();
+  }
+
+  function syncThemeSelector() {
+    const saved = localStorage.getItem('theme') || 'auto';
+    document.querySelectorAll('.theme-option').forEach(btn => {
+      const active = btn.dataset.value === saved;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+
+  document.querySelectorAll('.theme-option').forEach(btn => {
+    btn.addEventListener('click', () => applyThemePref(btn.dataset.value));
+  });
+
+  if (settingsBtn) settingsBtn.addEventListener('click', openSettingsPage);
+  if (settingsBack) settingsBack.addEventListener('click', closeSettingsPage);
 
   // Event listener pour le bouton de réservation dans le modal de salle
   const roomModalReserveBtn = document.getElementById('roomModalReserveBtn');
@@ -857,14 +917,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  filterBtn.addEventListener('click', openFilterModal);
-  filterModal.addEventListener('click', closeFilterModalOverlay);
-  profileBack.addEventListener('click', closeProfilePage);
+  if (filterBtn) filterBtn.addEventListener('click', openFilterModal);
+  if (filterModal) filterModal.addEventListener('click', closeFilterModalOverlay);
 
   // Event listeners pour le swipe down sur le modal de salle
-  roomModal.addEventListener('touchstart', handleTouchStart, { passive: false });
-  roomModal.addEventListener('touchmove', handleTouchMove, { passive: false });
-  roomModal.addEventListener('touchend', handleTouchEnd, { passive: false });
+  if (roomModal) {
+    roomModal.addEventListener('touchstart', handleTouchStart, { passive: false });
+    roomModal.addEventListener('touchmove', handleTouchMove, { passive: false });
+    roomModal.addEventListener('touchend', handleTouchEnd, { passive: false });
+  }
 
   // Event listener pour le scroll qui agrandit le modal
   const roomModalContent = roomModal.querySelector('.room-modal-content');
@@ -1014,32 +1075,38 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Event listener pour ouvrir la page profil depuis le menu
-  document.getElementById('profileMenuItem').addEventListener('click', function(e) {
-    e.preventDefault();
-    toggleMenu(); // Fermer le menu
-    openProfilePage(); // Ouvrir la page profil
-  });
+  // Fermer le menu hamburger quand on clique sur un lien du menu
+  const profileMenuItem = document.getElementById('profileMenuItem');
+  if (profileMenuItem) {
+    profileMenuItem.addEventListener('click', function() {
+      closeMenu({ target: menuOverlay }); // ferme le menu avant navigation
+    });
+  }
 
-  // Event listener pour le bouton de connexion Google
-  document.getElementById('loginBtn').addEventListener('click', function(e) {
-    e.preventDefault();
-    initiateGoogleSignIn();
-  });
+  // Event listener pour le bouton de connexion Google (page profil seulement)
+  const loginBtn = document.getElementById('loginBtn');
+  if (loginBtn) {
+    loginBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      initiateGoogleSignIn();
+    });
+  }
 
-
-  // Event listener pour le bouton de déconnexion
-  document.getElementById('logoutBtn').addEventListener('click', function(e) {
-    e.preventDefault();
-    signOut();
-  });
+  // Event listener pour le bouton de déconnexion (page profil seulement)
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      signOut();
+    });
+  }
 
   // Supprimer l'ancienne logique des event listeners (maintenant géré dans renderRooms)
 
   // Écouter le scroll sur la fenêtre
   window.addEventListener('scroll', handleScroll);
-  // Écouter aussi le scroll sur la grille
-  grid.addEventListener('scroll', handleScroll);
+  // Écouter aussi le scroll sur la grille (rooms page uniquement)
+  if (grid) grid.addEventListener('scroll', handleScroll);
 
   // Fonction pour afficher le loader
   function showLoader() {
@@ -1580,13 +1647,10 @@ document.addEventListener('DOMContentLoaded', function() {
   function showLoggedOutState() {
     const profileNotLogged = document.getElementById('profileNotLogged');
     const profileLogged = document.getElementById('profileLogged');
+    if (!profileNotLogged || !profileLogged) return;
 
-    // Afficher la page de connexion
     profileNotLogged.style.display = 'block';
-
-    // Masquer la page connectée
     profileLogged.style.display = 'none';
-
   }
 
   // Déconnexion
@@ -2202,9 +2266,28 @@ document.addEventListener('DOMContentLoaded', function() {
         card.className = 'card';
         card.setAttribute('data-status', status);
         card.setAttribute('data-room', roomNumber);
+
+        // Données enrichies pour la carte
+        const cardFloor = getRoomFloor(roomNumber);
+        const cardEpis = getRoomEpis(roomNumber);
+        const cardInfo = roomData[roomNumber] || {};
+        const cardCapacity = cardInfo.capacity;
+        const cardIsAmphi = cardInfo.type === 'Amphithéâtre';
+
+        // Index pour l'animation en cascade
+        card.style.setProperty('--i', grid.childElementCount);
+
         card.innerHTML = `
-          <div class="room-number">${escapeHTML(roomNumber)}</div>
-          <div class="room-state">${escapeHTML(status)}</div>
+          <div class="card-row-1">
+            <div class="room-number">${escapeHTML(roomNumber)}</div>
+            <div class="room-state">${escapeHTML(status)}</div>
+          </div>
+          <div class="room-tags">
+            <span class="room-tag">${escapeHTML(cardFloor)}</span>
+            <span class="room-tag">${escapeHTML(cardEpis)}</span>
+            ${cardCapacity ? `<span class="room-tag">${escapeHTML(String(cardCapacity))} places</span>` : ''}
+            ${cardIsAmphi ? '<span class="room-tag room-tag-type">Amphi</span>' : ''}
+          </div>
         `;
 
         grid.appendChild(card);
@@ -2261,11 +2344,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 30000); // 30 secondes
   }
 
-  // Charger les données au démarrage
-  loadRoomsFromAPI();
-
-  // Démarrer les mises à jour temps réel
-  startRealTimeUpdates();
+  // Charger les données et démarrer les mises à jour (page salles uniquement)
+  if (!isProfilePage) {
+    loadRoomsFromAPI();
+    startRealTimeUpdates();
+  }
 
   // Initialiser l'authentification Google
   initializeGoogleAuth();

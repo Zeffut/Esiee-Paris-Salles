@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Profil — Salles ESIEE</title>
+
+<meta name="description" content="Votre profil ESIEE - Réservations et préférences">
+<meta name="theme-color" content="#0F172A">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css?v=2000000000" />
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="script.js?v=1759177221"></script>
+</head>
+<body data-page="profile">
+  <!-- Fixed header -->
+  <div class="fixed-header">
+    <button class="hamburger" aria-label="Menu">
+      <span class="lines" aria-hidden="true"></span>
+    </button>
+    <h1 id="page-title" class="title-inline visible">Profil</h1>
+  </div>
+
+  <!-- Profile content (main) -->
+  <main class="app profile-view" role="main" aria-labelledby="page-title">
+
+    <!-- Not logged in state -->
+    <div class="profile-not-logged" id="profileNotLogged">
+      <div class="profile-avatar-placeholder">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 class="profile-welcome">Connexion requise</h2>
+      <p class="profile-description">Connectez-vous pour accéder à votre profil et synchroniser vos préférences.</p>
+
+      <div class="profile-actions">
+        <button class="profile-btn profile-btn-google" id="loginBtn">
+          Se connecter avec
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="profile-features">
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 14C19 15.0609 18.5786 16.0783 17.8284 16.8284C17.0783 17.5786 16.0609 18 15 18H6L2 22V4C2 2.93913 2.42143 1.92172 3.17157 1.17157C3.92172 0.421427 4.93913 0 6 0H15C16.0609 0 17.0783 0.421427 17.8284 1.17157C18.5786 1.92172 19 2.93913 19 4V14Z" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <h3>Salles favorites</h3>
+            <p>Marquez vos salles préférées</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 1V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 21V23" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.22 4.22L5.64 5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18.36 18.36L19.78 19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M1 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M21 12H23" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.22 19.78L5.64 18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18.36 5.64L19.78 4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <h3>Préférences</h3>
+            <p>Personnalisez votre expérience</p>
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2"/>
+              <path d="M16.24 7.76001L14.12 14.12L7.76001 16.24L9.88001 9.88001L16.24 7.76001Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <h3>Historique</h3>
+            <p>Consultez vos recherches récentes</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logged in state (hidden by default) -->
+    <div class="profile-logged" id="profileLogged" style="display: none;">
+      <div class="profile-user-info">
+        <div class="profile-avatar">
+          <img src="" alt="Avatar" id="userAvatar" style="display: none;">
+          <svg id="userAvatarIcon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="10" r="3" fill="#868686"/>
+            <path d="M6.5 18.5C7.5 16 9.5 14.5 12 14.5C14.5 14.5 16.5 16 17.5 18.5" stroke="#868686" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="profile-user-details">
+          <h2 class="profile-username" id="userName">John Doe</h2>
+          <p class="profile-email" id="userEmail">john.doe@esiee.fr</p>
+          <span class="profile-badge">Étudiant</span>
+        </div>
+      </div>
+
+      <!-- Section Réservations en cours -->
+      <div class="reservations-section">
+        <div class="reservations-header">
+          <div class="reservations-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+              <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2"/>
+              <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2"/>
+              <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
+              <circle cx="12" cy="16" r="2" fill="currentColor"/>
+            </svg>
+            <h3>Mes réservations</h3>
+          </div>
+          <span class="reservations-count" id="reservationsCount">0</span>
+        </div>
+
+        <div class="reservations-content" id="reservationsContent">
+          <div class="no-reservations" id="noReservations">
+            <div class="no-reservations-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <p>Aucune réservation en cours</p>
+            <span>Vos futures réservations apparaîtront ici</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-menu">
+
+        <div class="profile-menu-item" id="settingsBtn">
+          <div class="menu-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="menu-item-content">
+            <span class="menu-item-title">Réglages</span>
+            <span class="menu-item-subtitle">Personnaliser l'application</span>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div class="profile-menu-item" id="logoutBtn">
+          <div class="menu-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 5v14a2 2 0 0 0 2 2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3 5a2 2 0 0 1 2-2h6v18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14 12h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18 8l3 4-3 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="menu-item-content">
+            <span class="menu-item-title">Se déconnecter</span>
+            <span class="menu-item-subtitle">Fermer la session</span>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Settings page (overlay) -->
+  <div class="settings-page" id="settingsPage">
+    <div class="settings-header">
+      <button class="settings-back" id="settingsBack" aria-label="Retour">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <h1 class="settings-title">Réglages</h1>
+    </div>
+
+    <div class="settings-content">
+      <div class="settings-section">
+        <h2 class="settings-section-title">Apparence</h2>
+        <div class="settings-card">
+          <div class="settings-item-info">
+            <span class="settings-item-label">Thème</span>
+            <span class="settings-item-sub">Apparence de l'application</span>
+          </div>
+          <div class="theme-selector" role="group" aria-label="Choisir le thème">
+            <button class="theme-option" data-value="auto" id="themeOptAuto" aria-pressed="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>Auto</span>
+            </button>
+            <button class="theme-option" data-value="light" id="themeOptLight" aria-pressed="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span>Clair</span>
+            </button>
+            <button class="theme-option" data-value="dark" id="themeOptDark" aria-pressed="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Sombre</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu overlay -->
+  <div class="menu-overlay" id="menuOverlay">
+    <div class="menu-content">
+      <div class="menu-header">Menu</div>
+      <a href="index.html" class="menu-item">Salles</a>
+      <a href="profile.html" class="menu-item" id="profileMenuItem">Profil</a>
+    </div>
+  </div>
+
+  <!-- Modals de popup personnalisés -->
+  <div class="custom-alert-overlay" id="customAlertOverlay">
+    <div class="custom-alert-modal">
+      <div class="custom-alert-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="custom-alert-content">
+        <h3 class="custom-alert-title" id="customAlertTitle">Information</h3>
+        <p class="custom-alert-message" id="customAlertMessage">Message</p>
+      </div>
+      <div class="custom-alert-actions">
+        <button class="custom-alert-btn" id="customAlertBtn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="custom-confirm-overlay" id="customConfirmOverlay">
+    <div class="custom-confirm-modal">
+      <div class="custom-confirm-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="custom-confirm-content">
+        <h3 class="custom-confirm-title" id="customConfirmTitle">Confirmation</h3>
+        <p class="custom-confirm-message" id="customConfirmMessage">Message</p>
+      </div>
+      <div class="custom-confirm-actions">
+        <button class="custom-confirm-btn-cancel" id="customConfirmCancel">Annuler</button>
+        <button class="custom-confirm-btn-confirm" id="customConfirmBtn">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav" role="navigation" aria-label="Navigation principale">
+    <a class="nav-tab" href="index.html" aria-label="Salles">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+        <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+        <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      <span>Salles</span>
+    </a>
+    <a class="nav-tab nav-active" href="profile.html" aria-label="Profil">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+        <path d="M4 20c0-3.314 3.582-6 8-6s8 2.686 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span>Profil</span>
+    </a>
+  </nav>
+
+  <!-- Vercel Analytics -->
+  <script defer src="/_vercel/insights/script.js"></script>
+
+  <!-- Vercel Speed Insights -->
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+
+  <!-- Rybbit Analytics -->
+  <script
+    src="/rb/script.js"
+    data-site-id="a969e55cd4ad"
+    defer
+  ></script>
+</body>
+</html>
