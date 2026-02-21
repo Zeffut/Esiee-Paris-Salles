@@ -43,8 +43,8 @@ Interface web statique développée en HTML/CSS/JavaScript vanilla qui :
 - Permet aux utilisateurs connectés de réserver des salles
 
 **Technologies utilisées :**
-- HTML5 / CSS3 (design responsive)
-- JavaScript vanilla (aucun framework)
+- HTML5 / CSS3
+- JavaScript vanilla
 - Google Identity Services pour l'authentification
 - Déployé sur Vercel
 - Vercel Analytics et Speed Insights pour le monitoring
@@ -77,9 +77,9 @@ Interface web statique développée en HTML/CSS/JavaScript vanilla qui :
 - CDN global pour des performances optimales
 
 **Backend :**
-- Hébergé sur serveur Hostinger (72.60.94.131)
+- Hébergé sur VPS
 - Conteneurisé avec Docker via Dokploy
-- Reverse proxy Nginx avec SSL (Let's Encrypt)
+- Reverse proxy Nginx avec SSL
 - URL : `https://api.zeffut.fr`
 
 **Monitoring :**
@@ -123,20 +123,15 @@ Esiee-Paris-Salles/
 
 Les données d'emploi du temps sont extraites directement depuis le système de planification de l'ESIEE Paris (Celcat). Le cache est actualisé automatiquement toutes les heures pour garantir la fraîcheur des informations.
 
-**Statistiques typiques :**
-- ~93 salles référencées
-- ~1500 événements par semaine
-- Temps de réponse API : <500ms
-- Disponibilité : 99.9%
 
 ## Technologies et dépendances
 
 ### Backend
-- Python 3.13
-- Flask 2.3.3
-- Flask-CORS 4.0.0
-- pytz 2023.3
-- requests 2.31.0
+- Python3
+- Flask
+- Flask-CORS
+- pytz
+- requests
 
 ### Frontend
 - HTML5 / CSS3
@@ -145,25 +140,15 @@ Les données d'emploi du temps sont extraites directement depuis le système de 
 
 ### Infrastructure
 - Docker / Docker Swarm
-- Dokploy (gestion de conteneurs)
-- Nginx (reverse proxy)
-- Let's Encrypt (SSL)
-- Vercel (hébergement frontend)
+- Dokploy
+- Nginx
+- Let's Encrypt
+- Vercel
 
-## Développement
+## Licence
+Usage personnel uniquement
 
-Ce projet est développé et maintenu par Zeffut pour un usage personnel à l'ESIEE Paris.
-
-**Stack technique :**
-- Image Docker multi-stage pour optimisation
-- API Flask avec système de cache intelligent
-- Frontend responsive sans framework
-- CI/CD automatisé via Vercel et Dokploy
 
 ## Contact
 
 Pour toute question : [portfolio.zeffut.fr](https://portfolio.zeffut.fr)
-
----
-
-*Dernière mise à jour : Novembre 2025*
