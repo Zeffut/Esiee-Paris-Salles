@@ -152,20 +152,6 @@ window.customConfirm = customConfirm;
 // SERVICE WORKERS
 // =============================================================================
 
-// DÉSINSTALLATION DES SERVICE WORKERS - TEMPORAIREMENT DÉSACTIVÉ POUR DEBUG GOOGLE OAUTH
-// (async function() {
-//   if ('serviceWorker' in navigator) {
-//     try {
-//       const registrations = await navigator.serviceWorker.getRegistrations();
-//       for (let registration of registrations) {
-//         await registration.unregister();
-//         console.log('Service Worker désinscrit:', registration.scope);
-//       }
-//     } catch (error) {
-//       console.error('Erreur lors de la désinscription des service workers:', error);
-//     }
-//   }
-// })();
 
 // SYSTÈME DE NETTOYAGE DÉSACTIVÉ - Causait des boucles de rechargement
 // Pour nettoyer manuellement : ouvrir la console et taper localStorage.clear()
@@ -554,20 +540,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (futureCourses.length === 0) {
       scheduleHTML += '<p class="schedule-empty">Aucun cours à venir aujourd\'hui</p>';
     } else {
-      scheduleHTML += '<div class="schedule-list">';
-      futureCourses.forEach(course => {
+      const items = futureCourses.map(course => {
         const courseStartTime = course.start.split(':');
         const courseStartMinutes = parseInt(courseStartTime[0]) * 60 + parseInt(courseStartTime[1]);
         const isCurrentCourse = courseStartMinutes <= currentTime;
-
-        scheduleHTML += `
+        return `
           <div class="schedule-item ${isCurrentCourse ? 'schedule-current' : ''}">
             <div class="schedule-time">${escapeHTML(course.start)} - ${escapeHTML(course.end)}</div>
             <div class="schedule-course">${escapeHTML(course.course)}${isCurrentCourse ? ' (en cours)' : ''}</div>
           </div>
         `;
       });
-      scheduleHTML += '</div>';
+      scheduleHTML += '<div class="schedule-list">' + items.join('') + '</div>';
     }
 
     scheduleContainer.innerHTML = scheduleHTML;
@@ -944,7 +928,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let isFilterModalExpanded = false;
 
   // Gestion du scroll pour agrandir le modal des filtres
-  function handleFilterModalScroll(e) {
+  function handleFilterModalScroll() {
     const modalContent = filterModal.querySelector('.filter-modal-content');
     if (!modalContent) return;
 
@@ -1264,7 +1248,6 @@ document.addEventListener('DOMContentLoaded', function() {
   let authToken = null;
   let csrfToken = null;
   let isLoggingIn = false; // Protection contre les appels multiples
-  let googleAuthInitialized = false; // Protection contre les initialisations multiples
   let lastShowLoggedInStateTime = 0; // Protection contre doubles appels showLoggedInState
 
   // Initialisation de Google Identity Services
