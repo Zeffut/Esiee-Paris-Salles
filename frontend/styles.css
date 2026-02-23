@@ -1412,8 +1412,8 @@ body.modal-open {
 }
 
 .settings-back {
-  width: 36px;
   height: 36px;
+  padding: 0 12px 0 8px;
   border-radius: 10px;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -1421,7 +1421,9 @@ body.modal-open {
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
   flex-shrink: 0;
   transition: background 0.2s;
   -webkit-tap-highlight-color: transparent;

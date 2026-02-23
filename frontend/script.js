@@ -1250,10 +1250,12 @@ document.addEventListener('DOMContentLoaded', function() {
       <div style="margin-top: 8px; font-size: 14px;">
         Pour utiliser l'application, cliquez sur le bouclier 🛡️ dans la barre d'adresse et autorisez le contenu non sécurisé.
       </div>
-      <button onclick="this.parentElement.remove()" style="margin-top: 10px; background: white; color: #ff6b35; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-        Compris
-      </button>
     `;
+    const dismissBtn = document.createElement('button');
+    dismissBtn.textContent = 'Compris';
+    dismissBtn.style.cssText = 'margin-top: 10px; background: white; color: #ff6b35; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;';
+    dismissBtn.addEventListener('click', () => warningDiv.remove());
+    warningDiv.appendChild(dismissBtn);
     document.body.appendChild(warningDiv);
   }
 
@@ -1893,12 +1895,17 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       ${status !== 'past' ? `
         <div class="reservation-actions">
-          <button class="reservation-btn cancel" onclick="cancelReservation('${escapeHTML(reservation.id)}')">
+          <button class="reservation-btn cancel" data-reservation-id="${escapeHTML(reservation.id)}">
             Annuler
           </button>
         </div>
       ` : ''}
     `;
+
+    const cancelBtn = card.querySelector('.reservation-btn.cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => cancelReservation(cancelBtn.dataset.reservationId));
+    }
 
     return card;
   }
