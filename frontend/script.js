@@ -888,6 +888,9 @@ document.addEventListener('DOMContentLoaded', function() {
     btn.addEventListener('click', () => applyThemePref(btn.dataset.value));
   });
 
+  // Initialiser l'état visuel du sélecteur de thème sur toute page qui l'affiche
+  syncThemeSelector();
+
   if (settingsBtn) settingsBtn.addEventListener('click', () => { window.location.href = '/settings'; });
 
   // Event listener pour le bouton de réservation dans le modal de salle
