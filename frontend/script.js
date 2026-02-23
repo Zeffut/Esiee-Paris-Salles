@@ -1318,8 +1318,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (google.accounts && google.accounts.id) {
       google.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          // Fallback : flow OAuth popup
+          // Prompt non affiché ou ignoré → fallback OAuth
           initiateOAuthFlow();
+        } else if (notification.isDismissedMoment()) {
+          // Utilisateur a fermé le prompt sans se connecter → reset spinner
+          if (notification.getDismissedReason() !== 'credential_returned') {
+            setLoginButtonLoading(false);
+          }
         }
       });
     } else if (google.accounts && google.accounts.oauth2) {
