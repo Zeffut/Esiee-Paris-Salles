@@ -144,6 +144,25 @@ body.modal-open {
 
 .title-inline.visible { opacity: 1; }
 
+/* Back button in fixed header */
+.back-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.back-btn:hover { background: var(--card-hover); color: var(--text); }
+
 /* Theme toggle button */
 .theme-toggle {
   width: 36px;

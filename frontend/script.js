@@ -860,18 +860,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // --- Settings page ---
-  const settingsPage = document.getElementById('settingsPage');
-  const settingsBack = document.getElementById('settingsBack');
   const settingsBtn = document.getElementById('settingsBtn');
-
-  function openSettingsPage() {
-    if (settingsPage) settingsPage.classList.add('open');
-    syncThemeSelector();
-  }
-
-  function closeSettingsPage() {
-    if (settingsPage) settingsPage.classList.remove('open');
-  }
 
   function applyThemePref(value) {
     track('theme_changed', { theme: value });
@@ -899,8 +888,7 @@ document.addEventListener('DOMContentLoaded', function() {
     btn.addEventListener('click', () => applyThemePref(btn.dataset.value));
   });
 
-  if (settingsBtn) settingsBtn.addEventListener('click', openSettingsPage);
-  if (settingsBack) settingsBack.addEventListener('click', closeSettingsPage);
+  if (settingsBtn) settingsBtn.addEventListener('click', () => { window.location.href = '/settings'; });
 
   // Event listener pour le bouton de réservation dans le modal de salle
   const roomModalReserveBtn = document.getElementById('roomModalReserveBtn');
