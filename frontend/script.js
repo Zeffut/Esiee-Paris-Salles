@@ -160,6 +160,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const isProfilePage = document.body.dataset.page === 'profile';
 
+  // Helper Rybbit — silencieux si non chargé
+  function track(name, props) {
+    if (window.rybbit) {
+      try { window.rybbit.event(name, props); } catch (e) {}
+    }
+  }
+
   const titleSection = document.querySelector('.title-section');
   const titleInline = document.querySelector('.title-inline');
   const grid = document.querySelector('.grid');
@@ -384,6 +391,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // Ouvrir le modal de détails d'une salle
   async function openRoomModal(roomNumber, roomStatus) {
     currentModalRoomNumber = roomNumber;
+
+    track('room_viewed', {
+      room: roomNumber,
+      status: roomStatus || 'unknown',
+      building: getRoomEpis(roomNumber),
+      floor: getRoomFloor(roomNumber)
+    });
 
     const room = roomData[roomNumber] || {
       name: `Salle ${roomNumber}`,
@@ -780,6 +794,8 @@ document.addEventListener('DOMContentLoaded', function() {
       searchInput.value = '';
     }
 
+    track('filter_reset');
+
     // Afficher toutes les salles en utilisant la fonction de filtrage
     filterRooms();
 
@@ -831,6 +847,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Appliquer les filtres et fermer le modal
+    const activeFilters = Object.entries(currentFilters)
+      .filter(([, v]) => v.length > 0)
+      .reduce((acc, [k, v]) => { acc[k] = v.join(','); return acc; }, {});
+    if (Object.keys(activeFilters).length > 0) {
+      track('filter_applied', activeFilters);
+    }
     filterRooms();
     closeFilterModal();
   }
@@ -863,6 +885,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function applyThemePref(value) {
+    track('theme_changed', { theme: value });
     if (value === 'auto') {
       localStorage.setItem('theme', 'auto');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1052,7 +1075,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.querySelector('.search input[type="text"]');
   if (searchInput) {
     // Recherche en temps réel pendant la saisie (debounced 150ms)
-    const debouncedFilter = debounce(filterRooms, 150);
+    const debouncedFilter = debounce(() => {
+      filterRooms();
+      const term = searchInput.value.trim();
+      if (term.length > 0) track('search_performed', { term_length: term.length });
+    }, 500);
     searchInput.addEventListener('input', debouncedFilter);
 
     // Recherche immédiate lors de l'appui sur Entrée
@@ -1420,6 +1447,8 @@ document.addEventListener('DOMContentLoaded', function() {
           if (csrfToken) localStorage.setItem('csrfToken', csrfToken);
           localStorage.setItem('lastLoginTime', Date.now().toString());
 
+          const domain = currentUser.email ? currentUser.email.split('@')[1] : 'unknown';
+          track('login_success', { method: 'backend', email_domain: domain });
           isLoggingIn = false;
           showLoggedInState();
           return;
@@ -1442,12 +1471,15 @@ document.addEventListener('DOMContentLoaded', function() {
       localStorage.setItem('user', JSON.stringify(currentUser));
       localStorage.setItem('lastLoginTime', Date.now().toString());
 
+      const domain = currentUser.email ? currentUser.email.split('@')[1] : 'unknown';
+      track('login_success', { method: 'local', email_domain: domain });
       isLoggingIn = false;
       showLoggedInState();
 
     } catch (error) {
       console.error('❌ Erreur handleCredentialResponse:', error);
       isLoggingIn = false;
+      track('login_error');
       showErrorMessage('Erreur lors de la connexion');
     }
   }
@@ -1656,6 +1688,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('Erreur lors de la déconnexion backend:', error);
       }
     }
+
+    track('logout');
 
     // Supprimer l'identification Rybbit Analytics
     if (window.rybbit && window.rybbit.clearUserId) {
@@ -1917,6 +1951,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       if (data.success) {
+        track('reservation_cancelled');
+
         // Mettre à jour les réservations localement
         if (currentUser && currentUser.reservations) {
           currentUser.reservations.history = data.reservations;
@@ -1993,6 +2029,8 @@ document.addEventListener('DOMContentLoaded', function() {
       await customAlert('Vous avez déjà une réservation active. Annulez-la avant d\'en créer une nouvelle.', 'Réservation existante');
       return;
     }
+
+    track('reservation_opened', { room: roomNumber });
 
     selectedRoomNumber = roomNumber;
     const modal = document.getElementById('reservationModal');
@@ -2195,6 +2233,8 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Erreur lors du rechargement des réservations actives:', error);
           }
 
+          track('reservation_confirmed', { room: selectedRoomNumber, time_slot: timeSlot });
+
           // Fermer le modal
           reservationModal.classList.remove('open');
           document.body.classList.remove('modal-open');
@@ -2205,10 +2245,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
           await customAlert('Réservation confirmée !', 'Succès');
         } else {
+          track('reservation_error', { room: selectedRoomNumber, reason: data.error || 'unknown' });
           await customAlert(data.error || 'Erreur lors de la réservation', 'Erreur');
         }
       } catch (error) {
         console.error('Erreur lors de la réservation:', error);
+        track('reservation_error', { room: selectedRoomNumber, reason: 'network' });
         await customAlert('Erreur lors de la réservation', 'Erreur');
       }
     });
