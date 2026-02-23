@@ -1277,7 +1277,6 @@ document.addEventListener('DOMContentLoaded', function() {
   let authToken = null;
   let csrfToken = null;
   let isLoggingIn = false; // Protection contre les appels multiples
-  let lastShowLoggedInStateTime = 0; // Protection contre doubles appels showLoggedInState
 
   // Initialisation de Google Identity Services
   function initializeGoogleAuth() {
@@ -1291,15 +1290,29 @@ document.addEventListener('DOMContentLoaded', function() {
           cancel_on_tap_outside: true,
           use_fedcm_for_prompt: true
         });
-
-        // Vérifier si l'utilisateur est déjà connecté
-        checkExistingAuth();
       } catch (error) {
         console.error('Erreur lors de l\'initialisation Google Auth:', error);
       }
     } else {
       // Google pas encore chargé → réessayer
       setTimeout(initializeGoogleAuth, 1000);
+    }
+  }
+
+  // Gestion du spinner sur le bouton de connexion
+  function setLoginButtonLoading(loading) {
+    const loginBtn = document.getElementById('loginBtn');
+    if (!loginBtn) return;
+    if (loading) {
+      loginBtn.disabled = true;
+      loginBtn.dataset.originalHtml = loginBtn.innerHTML;
+      loginBtn.innerHTML = '<span class="btn-spinner"></span>Connexion en cours…';
+    } else {
+      loginBtn.disabled = false;
+      if (loginBtn.dataset.originalHtml) {
+        loginBtn.innerHTML = loginBtn.dataset.originalHtml;
+        delete loginBtn.dataset.originalHtml;
+      }
     }
   }
 
@@ -1311,17 +1324,19 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
+    setLoginButtonLoading(true);
+
     if (google.accounts && google.accounts.id) {
-      // Utiliser le prompt pour la connexion
       google.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          // Alternative : utiliser le flow OAuth popup
+          // Fallback : flow OAuth popup
           initiateOAuthFlow();
         }
       });
     } else if (google.accounts && google.accounts.oauth2) {
       initiateOAuthFlow();
     } else {
+      setLoginButtonLoading(false);
       showErrorMessage('Services Google non disponibles. Vérifiez votre connexion internet.');
     }
   }
@@ -1392,6 +1407,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (csrfToken) localStorage.setItem('csrfToken', csrfToken);
           localStorage.setItem('lastLoginTime', Date.now().toString());
 
+          setLoginButtonLoading(false);
           showLoggedInState();
           return;
         }
@@ -1412,16 +1428,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
       localStorage.setItem('user', JSON.stringify(currentUser));
       localStorage.setItem('lastLoginTime', Date.now().toString());
+      setLoginButtonLoading(false);
       showLoggedInState();
 
     } catch (error) {
       console.error('Erreur fetchUserInfoWithToken:', error);
+      setLoginButtonLoading(false);
       showErrorMessage('Erreur lors de la connexion');
     }
   }
 
   async function handleCredentialResponse(response) {
-    if (currentUser && localStorage.getItem('user')) return;
     if (isLoggingIn) return;
 
     isLoggingIn = true;
@@ -1452,6 +1469,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const emailDomain = currentUser.email ? currentUser.email.split('@')[1] : 'unknown';
           track('login_success', { method: 'backend', email_domain: emailDomain });
           isLoggingIn = false;
+          setLoginButtonLoading(false);
           showLoggedInState();
           return;
         }
@@ -1476,11 +1494,13 @@ document.addEventListener('DOMContentLoaded', function() {
       const emailDomain = currentUser.email ? currentUser.email.split('@')[1] : 'unknown';
       track('login_success', { method: 'local', email_domain: emailDomain });
       isLoggingIn = false;
+      setLoginButtonLoading(false);
       showLoggedInState();
 
     } catch (error) {
       console.error('❌ Erreur handleCredentialResponse:', error);
       isLoggingIn = false;
+      setLoginButtonLoading(false);
       track('login_error');
       showErrorMessage('Erreur lors de la connexion');
     }
@@ -1527,7 +1547,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   async function checkExistingAuth() {
     if (authCheckInProgress) return;
-
     authCheckInProgress = true;
 
     const storedUser = localStorage.getItem('user');
@@ -1535,74 +1554,63 @@ document.addEventListener('DOMContentLoaded', function() {
     const storedCsrfToken = localStorage.getItem('csrfToken');
     const lastLoginTime = localStorage.getItem('lastLoginTime');
 
-    if (storedUser) {
-      try {
-        currentUser = JSON.parse(storedUser);
-        authToken = storedToken;
-        csrfToken = storedCsrfToken;
-
-        // Vérifier l'âge de la session (7 jours max)
-        const now = Date.now();
-        const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
-
-        if (lastLoginTime) {
-          const sessionAge = now - parseInt(lastLoginTime);
-          if (sessionAge >= sevenDaysInMs) {
-            authCheckInProgress = false;
-            signOut();
-            return;
-          }
-        }
-
-        // Vérifier le token backend s'il existe
-        if (authToken) {
-          try {
-            const response = await fetch(`${API_BASE_URL}/auth/verify`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-              }
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-              currentUser = result.user;
-              localStorage.setItem('user', JSON.stringify(currentUser));
-              authCheckInProgress = false;
-              showLoggedInState();
-              return;
-            } else {
-              authCheckInProgress = false;
-              signOut();
-              return;
-            }
-          } catch (error) {
-            console.warn('⚠️ Impossible de vérifier le token backend:', error);
-          }
-        }
-
-        // Mode session locale
-        authCheckInProgress = false;
-        showLoggedInState();
-
-      } catch (error) {
-        console.error('❌ Erreur lors de la vérification de la session:', error);
-        authCheckInProgress = false;
-        signOut();
-      }
-    } else {
+    if (!storedUser) {
       authCheckInProgress = false;
+      return;
+    }
+
+    try {
+      currentUser = JSON.parse(storedUser);
+      authToken = storedToken;
+      csrfToken = storedCsrfToken;
+
+      // Vérifier l'âge de la session (7 jours max)
+      if (lastLoginTime) {
+        const sessionAge = Date.now() - parseInt(lastLoginTime);
+        if (sessionAge >= 7 * 24 * 60 * 60 * 1000) {
+          authCheckInProgress = false;
+          signOut();
+          return;
+        }
+      }
+
+      // Affichage immédiat depuis localStorage — sans attendre le réseau
+      showLoggedInState();
+      authCheckInProgress = false;
+
+      // Vérification du token en arrière-plan
+      if (authToken) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${authToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          const result = await response.json();
+          if (result.success) {
+            currentUser = result.user;
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            showLoggedInState();
+          } else {
+            signOut();
+          }
+        } catch (error) {
+          // Erreur réseau : conserver la session locale
+          console.warn('Vérification token impossible (réseau) :', error);
+        }
+      }
+
+    } catch (error) {
+      console.error('Erreur lors de la vérification de la session :', error);
+      authCheckInProgress = false;
+      signOut();
     }
   }
 
 
   function showLoggedInState() {
-    const now = Date.now();
-    if (now - lastShowLoggedInStateTime < 1000) return;
-    lastShowLoggedInStateTime = now;
-
     const profileNotLogged = document.getElementById('profileNotLogged');
     const profileLogged = document.getElementById('profileLogged');
 
@@ -2382,7 +2390,10 @@ document.addEventListener('DOMContentLoaded', function() {
     startRealTimeUpdates();
   }
 
-  // Initialiser l'authentification Google
+  // Restaurer la session immédiatement (sans attendre le SDK Google)
+  checkExistingAuth();
+
+  // Initialiser le SDK Google Auth en parallèle
   initializeGoogleAuth();
 
 });
