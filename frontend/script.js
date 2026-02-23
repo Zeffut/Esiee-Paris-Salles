@@ -662,7 +662,7 @@ document.addEventListener('DOMContentLoaded', function() {
     isDragging = true;
   }
 
-  let touchRafPending = false;
+  let isTouchRafPending = false;
 
   function handleTouchMove(e) {
     if (!isDragging) return;
@@ -677,10 +677,10 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
 
         // Utiliser requestAnimationFrame pour optimiser le rendu
-        if (!touchRafPending) {
-          touchRafPending = true;
+        if (!isTouchRafPending) {
+          isTouchRafPending = true;
           requestAnimationFrame(() => {
-            touchRafPending = false;
+            isTouchRafPending = false;
             const translateY = Math.min(diffY * 0.5, 100);
             modalContent.style.transform = `translateY(${translateY}px)`;
           });
