@@ -20,17 +20,6 @@
 })();
 
 // =============================================================================
-// TRACKING DES RECHARGES (pour détecter les boucles)
-// =============================================================================
-const reloadCount = parseInt(sessionStorage.getItem('reloadCount') || '0');
-sessionStorage.setItem('reloadCount', (reloadCount + 1).toString());
-
-// Alert si trop de recharges en peu de temps (possible live reload actif)
-if (reloadCount > 5) {
-  console.warn('⚠️ Plus de 5 recharges détectés. Si vous utilisez Live Server, désactivez-le.');
-}
-
-// =============================================================================
 // CACHE ET DÉDUPLICATION DES REQUÊTES API
 // =============================================================================
 
