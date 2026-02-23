@@ -674,7 +674,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const modalContent = roomModal.querySelector('.room-modal-content');
       if (modalContent.scrollTop === 0) {
         // Empêcher le scroll par défaut
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
 
         // Utiliser requestAnimationFrame pour optimiser le rendu
         if (!isTouchRafPending) {
@@ -1014,7 +1014,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (diffY > 0) {
       const modalContent = filterModal.querySelector('.filter-modal-content');
       if (modalContent.scrollTop === 0) {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
 
         // Utiliser requestAnimationFrame pour optimiser
         if (!filterTouchRafPending) {
