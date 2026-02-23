@@ -1029,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  function handleFilterTouchEnd(e) {
+  function handleFilterTouchEnd() {
     if (!isFilterDragging) return;
     isFilterDragging = false;
 
@@ -1449,8 +1449,8 @@ document.addEventListener('DOMContentLoaded', function() {
           if (csrfToken) localStorage.setItem('csrfToken', csrfToken);
           localStorage.setItem('lastLoginTime', Date.now().toString());
 
-          const domain = currentUser.email ? currentUser.email.split('@')[1] : 'unknown';
-          track('login_success', { method: 'backend', email_domain: domain });
+          const emailDomain = currentUser.email ? currentUser.email.split('@')[1] : 'unknown';
+          track('login_success', { method: 'backend', email_domain: emailDomain });
           isLoggingIn = false;
           showLoggedInState();
           return;
@@ -1473,8 +1473,8 @@ document.addEventListener('DOMContentLoaded', function() {
       localStorage.setItem('user', JSON.stringify(currentUser));
       localStorage.setItem('lastLoginTime', Date.now().toString());
 
-      const domain = currentUser.email ? currentUser.email.split('@')[1] : 'unknown';
-      track('login_success', { method: 'local', email_domain: domain });
+      const emailDomain = currentUser.email ? currentUser.email.split('@')[1] : 'unknown';
+      track('login_success', { method: 'local', email_domain: emailDomain });
       isLoggingIn = false;
       showLoggedInState();
 
@@ -2067,7 +2067,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const now = new Date();
     const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
 
     // Commencer à l'heure actuelle (pas la suivante)
     let startHour = currentHour;
