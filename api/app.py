@@ -15,6 +15,29 @@ from user_manager import user_manager
 
 app = Flask(__name__)
 
+ALLOWED_ORIGINS = [
+    'http://localhost:8000',
+    'http://localhost:5500',
+    'https://esiee.zeffut.fr',
+]
+
+@app.after_request
+def apply_cors(response):
+    origin = request.headers.get('Origin')
+    if origin in ALLOWED_ORIGINS:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-CSRF-Token'
+    return response
+
+@app.before_request
+def handle_preflight():
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        apply_cors(response)
+        return response
+
 # Verrou global pour éviter les race conditions sur les réservations
 reservation_lock = threading.Lock()
 
