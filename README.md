@@ -146,7 +146,12 @@ Les données d'emploi du temps sont extraites directement depuis le système de 
 - Vercel
 
 ## Licence
-Usage personnel uniquement
+
+**Tous droits réservés** © 2026 Zeffut (Tom).
+
+Ce projet est publié à des fins de démonstration et de portfolio uniquement. Toute reproduction, modification, redistribution ou réutilisation — totale ou partielle — par quelque personne ou entité que ce soit (y compris l'ESIEE Paris, ses personnels et ses étudiants) est **strictement interdite** sans autorisation écrite préalable de l'auteur.
+
+Voir le fichier [LICENSE](./LICENSE) pour les conditions complètes.
 
 
 ## Contact
