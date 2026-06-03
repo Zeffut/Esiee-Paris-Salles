@@ -149,10 +149,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const isProfilePage = document.body.dataset.page === 'profile';
 
-  // Helper Rybbit — silencieux si non chargé
+  // Helper tracking — envoie vers Rybbit ET PostHog, silencieux si non chargés
   function track(name, props) {
     if (window.rybbit) {
       try { window.rybbit.event(name, props); } catch (e) {}
+    }
+    if (window.posthog) {
+      try { window.posthog.capture(name, props); } catch (e) {}
     }
   }
 
@@ -1647,6 +1650,20 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
+    // Identifier l'utilisateur dans PostHog
+    if (window.posthog && currentUser) {
+      try {
+        const emailDomain = currentUser.email ? currentUser.email.split('@')[1] : 'unknown';
+        window.posthog.identify(currentUser.email || currentUser.id, {
+          name: currentUser.name,
+          email: currentUser.email,
+          email_domain: emailDomain
+        });
+      } catch (e) {
+        console.warn('PostHog identify error:', e);
+      }
+    }
+
     try {
       updateReservationsDisplay();
     } catch (error) {
@@ -1692,6 +1709,15 @@ document.addEventListener('DOMContentLoaded', function() {
         window.rybbit.clearUserId();
       } catch (e) {
         console.warn('Rybbit clearUserId error:', e);
+      }
+    }
+
+    // Réinitialiser l'identification PostHog
+    if (window.posthog && window.posthog.reset) {
+      try {
+        window.posthog.reset();
+      } catch (e) {
+        console.warn('PostHog reset error:', e);
       }
     }
 
