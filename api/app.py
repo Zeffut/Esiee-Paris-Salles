@@ -12,6 +12,7 @@ from cache_manager import (
 )
 from events_api import get_events_next_week, get_events_for_room, get_available_rooms_today
 from user_manager import user_manager
+from posthog_tracking import capture_event, capture_exception
 
 app = Flask(__name__)
 
@@ -1392,6 +1393,15 @@ def create_reservation():
             user_manager.users_data['users'][user_id] = user
             user_manager._save_users()
 
+        # Tracking serveur PostHog (fiable, non bloquable par adblock)
+        capture_event(user_id, 'reservation_confirmed_server', {
+            'room': room_number,
+            'date': date,
+            'start_time': start_time,
+            'end_time': end_time,
+            'status': reservation['status'],
+        })
+
         return jsonify({
             'success': True,
             'message': 'Réservation créée avec succès',
@@ -1403,6 +1413,7 @@ def create_reservation():
         print(f"Erreur lors de la création de la réservation: {e}")
         import traceback
         traceback.print_exc()
+        capture_exception(e, properties={'endpoint': '/api/reservations', 'method': 'POST'})
         return jsonify({
             'success': False,
             'error': 'Erreur interne du serveur'
@@ -1465,6 +1476,12 @@ def cancel_reservation(reservation_id):
         user_manager.users_data['users'][user_id] = user
         user_manager._save_users()
 
+        # Tracking serveur PostHog (fiable, non bloquable par adblock)
+        capture_event(user_id, 'reservation_cancelled_server', {
+            'room': reservation_to_delete.get('room_number') if reservation_to_delete else None,
+            'reservation_id': reservation_id,
+        })
+
         return jsonify({
             'success': True,
             'message': 'Réservation annulée avec succès',
@@ -1473,6 +1490,7 @@ def cancel_reservation(reservation_id):
 
     except Exception as e:
         print(f"Erreur lors de l'annulation de la réservation: {e}")
+        capture_exception(e, properties={'endpoint': '/api/reservations/<id>', 'method': 'DELETE'})
         return jsonify({
             'success': False,
             'error': 'Erreur interne du serveur'
