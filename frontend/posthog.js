@@ -19,3 +19,6 @@ posthog.init('phc_zdMj4p5wo8EvfVApjb2EbfUHJ76zgYGM5wAGz5YJC359', {
     recordCrossOriginIframes: true
   }
 });
+
+// Super property envoyée avec TOUS les events (autocapture, $pageview, $web_vitals, events custom…)
+posthog.register({ app: 'esiee-salles' });

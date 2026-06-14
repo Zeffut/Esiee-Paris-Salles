@@ -19,6 +19,9 @@ POSTHOG_API_KEY = os.environ.get(
 )
 POSTHOG_HOST = os.environ.get('POSTHOG_HOST', 'https://eu.i.posthog.com')
 
+# Super property ajoutée à TOUS les events serveur (pour filtrer par app dans PostHog).
+APP_NAME = 'esiee-salles'
+
 try:
     from posthog import Posthog
     _client = Posthog(project_api_key=POSTHOG_API_KEY, host=POSTHOG_HOST)
@@ -35,7 +38,7 @@ def capture_event(distinct_id, event, properties=None):
         _client.capture(
             distinct_id=str(distinct_id) if distinct_id else 'anonymous',
             event=event,
-            properties=properties or {},
+            properties={'app': APP_NAME, **(properties or {})},
         )
     except Exception as e:
         print(f"⚠️ PostHog capture_event échec ({event}): {e}")
@@ -49,7 +52,7 @@ def capture_exception(error, distinct_id=None, properties=None):
         _client.capture_exception(
             error,
             distinct_id=str(distinct_id) if distinct_id else 'server',
-            properties=properties or {},
+            properties={'app': APP_NAME, **(properties or {})},
         )
     except Exception as e:
         print(f"⚠️ PostHog capture_exception échec: {e}")
