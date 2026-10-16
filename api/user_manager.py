@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import hashlib
 import secrets
+from data_directory import data_path, private_opener
 
 class ESIEEUserManager:
     """
@@ -13,8 +14,8 @@ class ESIEEUserManager:
     - Gestion des sessions et authentification
     """
 
-    def __init__(self, users_file: str = "esiee_users.json", whitelist_file: str = "email_whitelist.json"):
-        self.users_file = users_file
+    def __init__(self, users_file: Optional[str] = None, whitelist_file: str = "email_whitelist.json"):
+        self.users_file = data_path(users_file, "esiee_users.json")
         self.whitelist_file = whitelist_file
         self.users_data = self._load_users()
         self.email_whitelist = self._load_whitelist()
@@ -62,7 +63,7 @@ class ESIEEUserManager:
         """Sauvegarder les données utilisateurs"""
         try:
             self.users_data["metadata"]["last_updated"] = datetime.now().isoformat()
-            with open(self.users_file, 'w', encoding='utf-8') as f:
+            with open(self.users_file, 'w', encoding='utf-8', opener=private_opener) as f:
                 json.dump(self.users_data, f, ensure_ascii=False, indent=2)
             return True
         except IOError as e:

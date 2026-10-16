@@ -40,6 +40,13 @@ class ESIEEiCalExtractor:
 
     def _parse_ical_content(self, content: str) -> bool:
         """Parse le contenu iCal"""
+        # Un HTTP 200 HTML/tronqué n'est pas une semaine de vacances valide.
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        if (not lines or lines[0] != 'BEGIN:VCALENDAR' or
+                lines[-1] != 'END:VCALENDAR' or
+                lines.count('BEGIN:VEVENT') != lines.count('END:VEVENT')):
+            logger.error("❌ Calendrier iCal invalide ou incomplet")
+            return False
         events = []
         rooms_summary = {}
 

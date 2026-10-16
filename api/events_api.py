@@ -7,6 +7,19 @@ Fonction principale : get_events_this_week()
 from datetime import datetime
 from typing import List, Dict, Optional
 from ical_extractor_final import ESIEEiCalFinalExtractor
+import re
+
+
+class EventFetchError(RuntimeError):
+    """La source est indisponible ou invalide, et non une semaine vide."""
+
+
+def get_per_room_numbers(location: str) -> List[str]:
+    """Numéros PER exacts, y compris les virgules échappées iCal."""
+    if not location or not location.startswith('PER - '):
+        return []
+    return [room.strip() for room in location[6:].replace('\\,', ',').split(',')
+            if re.fullmatch(r'[0-9]{3,4}', room.strip())]
 
 def get_events_this_week() -> List[Dict]:
     """
@@ -14,6 +27,9 @@ def get_events_this_week() -> List[Dict]:
 
     Returns:
         List[Dict]: Liste des événements avec leurs informations
+
+    Raises:
+        EventFetchError: Échec de collecte. Une liste vide signifie un succès vide.
 
     Exemple d'utilisation:
         events = get_events_this_week()
@@ -28,11 +44,12 @@ def get_events_this_week() -> List[Dict]:
         if extractor.extract_current_week():
             return extractor.events_data
         else:
-            return []
+            raise EventFetchError("Échec de la collecte des événements de cette semaine")
 
+    except EventFetchError:
+        raise
     except Exception as e:
-        print(f"Erreur lors de la récupération des événements: {e}")
-        return []
+        raise EventFetchError("Échec de la collecte des événements de cette semaine") from e
 
 def get_events_next_week() -> List[Dict]:
     """Récupère les événements de la semaine prochaine"""
@@ -66,7 +83,9 @@ def get_events_for_room(room_name: str, week_offset: int = 0) -> List[Dict]:
             # Filtrer les événements pour cette salle
             room_events = []
             for event in extractor.events_data:
-                if event.get('room_full') == room_name:
+                if (event.get('room_full') == room_name or
+                        (room_name.startswith('PER - ') and
+                         room_name[6:] in get_per_room_numbers(event.get('room_full', '')))):
                     room_events.append(event)
 
             return sorted(room_events, key=lambda x: x.get('start_datetime', datetime.min))
@@ -77,7 +96,7 @@ def get_events_for_room(room_name: str, week_offset: int = 0) -> List[Dict]:
         print(f"Erreur lors de la récupération des événements pour {room_name}: {e}")
         return []
 
-def get_available_rooms_today() -> List[str]:
+def get_available_rooms_today(events: Optional[List[Dict]] = None) -> List[str]:
     """
     Récupère la liste des salles disponibles maintenant
 
@@ -85,7 +104,8 @@ def get_available_rooms_today() -> List[str]:
         List[str]: Liste des noms de salles libres maintenant
     """
     try:
-        events = get_events_this_week()
+        if events is None:
+            events = get_events_this_week()
         now = datetime.now()
 
         # Récupérer toutes les salles
@@ -98,12 +118,13 @@ def get_available_rooms_today() -> List[str]:
             end_time = event.get('end_datetime')
 
             if room:
-                all_rooms.add(room)
+                rooms = [f'PER - {number}' for number in get_per_room_numbers(room)] or [room]
+                all_rooms.update(rooms)
 
                 # Vérifier si la salle est occupée maintenant
                 if isinstance(start_time, datetime) and isinstance(end_time, datetime):
                     if start_time <= now <= end_time:
-                        occupied_rooms.add(room)
+                        occupied_rooms.update(rooms)
 
         # Salles libres = toutes les salles - salles occupées
         available_rooms = sorted(list(all_rooms - occupied_rooms))

@@ -7,10 +7,12 @@ Récupère les données une fois par heure et les stocke en JSON
 import json
 import os
 import re
+import tempfile
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import logging
 from events_api import get_events_this_week, get_available_rooms_today
+from data_directory import data_path
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +70,8 @@ class ESIEECacheManager:
         '5203': {'name': 'Salle 5203', 'board': 'Tableau blanc', 'capacity': '30', 'type': 'Salle classique'},
     }
 
-    def __init__(self, cache_file: str = "esiee_cache.json", cache_duration_hours: int = 1):
-        self.cache_file = cache_file
+    def __init__(self, cache_file: Optional[str] = None, cache_duration_hours: int = 1):
+        self.cache_file = data_path(cache_file, "esiee_cache.json")
         self.cache_duration = timedelta(hours=cache_duration_hours)
         self.cache_data = None
         self.last_update = None
@@ -99,14 +101,23 @@ class ESIEECacheManager:
 
     def save_cache(self) -> bool:
         """Sauvegarde le cache dans le fichier JSON"""
+        temporary_path = None
         try:
             cache_content = {
                 'last_update': self.last_update.isoformat() if self.last_update else None,
                 'data': self.cache_data
             }
 
-            with open(self.cache_file, 'w', encoding='utf-8') as f:
+            # Écrire à côté du cache puis remplacer atomiquement : un disque plein
+            # ou une sérialisation échouée ne doit pas détruire le dernier cache.
+            directory = os.path.dirname(os.path.abspath(self.cache_file))
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8',
+                                             dir=directory, prefix='.esiee-cache-',
+                                             suffix='.tmp', delete=False) as f:
+                temporary_path = f.name
                 json.dump(cache_content, f, ensure_ascii=False, indent=2, default=str)
+            os.replace(temporary_path, self.cache_file)
+            temporary_path = None
 
             logger.info(f"💾 Cache sauvegardé dans {self.cache_file}")
             return True
@@ -114,6 +125,12 @@ class ESIEECacheManager:
         except Exception as e:
             logger.error(f"❌ Erreur lors de la sauvegarde du cache: {e}")
             return False
+        finally:
+            if temporary_path is not None:
+                try:
+                    os.unlink(temporary_path)
+                except OSError:
+                    logger.warning("⚠️ Impossible de supprimer le fichier temporaire du cache")
 
     def is_cache_valid(self) -> bool:
         """Vérifie si le cache est encore valide"""
@@ -121,7 +138,7 @@ class ESIEECacheManager:
             return False
 
         now = datetime.now()
-        return (now - self.last_update) < self.cache_duration
+        return timedelta(0) <= (now - self.last_update) < self.cache_duration
 
     def refresh_cache(self) -> bool:
         """Rafraîchit le cache avec de nouvelles données"""
@@ -133,7 +150,7 @@ class ESIEECacheManager:
             events = get_events_this_week()
 
             logger.info("🏢 Récupération des salles disponibles...")
-            available_rooms = get_available_rooms_today()
+            available_rooms = get_available_rooms_today(events)
 
             # Fonction de déduplication des événements
             def deduplicate_events(events_list):
@@ -295,6 +312,7 @@ class ESIEECacheManager:
             total_rooms = len(rooms_data)
 
             # Structurer les données du cache
+            previous_data, previous_update = self.cache_data, self.last_update
             self.cache_data = {
                 'events': events,
                 'available_rooms': list(available_rooms),
@@ -313,7 +331,9 @@ class ESIEECacheManager:
             self.last_update = datetime.now()
 
             # Sauvegarder le cache
-            self.save_cache()
+            if not self.save_cache():
+                self.cache_data, self.last_update = previous_data, previous_update
+                return False
 
             logger.info(f"✅ Cache rafraîchi: {len(events)} événements, {total_rooms} salles ({len(self.KNOWN_ROOMS)} connues)")
             return True

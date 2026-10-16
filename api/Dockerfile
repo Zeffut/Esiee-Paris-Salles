@@ -21,7 +21,8 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
 
 # Copier le code source de l'application
-COPY . .
+COPY *.py ./
+COPY email_whitelist.json ./
 
 # Créer un utilisateur non-root pour la sécurité
 RUN useradd -m -u 1000 appuser && \

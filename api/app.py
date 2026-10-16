@@ -10,7 +10,7 @@ from cache_manager import (
     get_cached_available_rooms, get_cache_stats, force_cache_refresh,
     cache_manager
 )
-from events_api import get_events_next_week, get_events_for_room, get_available_rooms_today
+from events_api import get_events_next_week, get_events_for_room, get_available_rooms_today, get_per_room_numbers
 from user_manager import user_manager
 from posthog_tracking import capture_event, capture_exception
 
@@ -160,7 +160,7 @@ def get_room_schedule_from_cache(room_number, week_offset=0):
             # Filtrer les événements pour cette salle
             room_events = []
             for event in all_events:
-                if event.get('room_full') == room_full_name:
+                if str(room_number) in get_per_room_numbers(event.get('room_full', '')):
                     room_events.append(event)
 
             # Organiser par jour de la semaine
