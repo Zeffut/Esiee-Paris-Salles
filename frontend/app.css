@@ -89,9 +89,13 @@ h1, h2, h3, p { margin: 0; }
   padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 24px);
 }
 
-.page--no-tabbar { padding-bottom: calc(var(--safe-bottom) + 24px); }
+.page--no-tabbar,
+.hide-tabbar .page { padding-bottom: calc(var(--safe-bottom) + 24px); }
+.hide-tabbar .tabbar { display: none; }
 
 .view { display: flex; flex-direction: column; }
+/* la fiche occupe tout l'écran pour que le bouton Réserver reste en bas */
+#viewRoom { min-height: calc(100dvh - var(--safe-bottom) - 24px); }
 
 .page-head {
   display: flex; flex-direction: column; gap: 2px;
@@ -371,7 +375,8 @@ h1, h2, h3, p { margin: 0; }
   background: linear-gradient(to bottom, rgba(242, 245, 249, 0), var(--bg) 30%);
   margin-top: auto;
 }
-.page--no-tabbar .cta-bar { bottom: 0; padding-bottom: calc(18px + var(--safe-bottom)); }
+.page--no-tabbar .cta-bar,
+.hide-tabbar .cta-bar { bottom: 0; padding-bottom: calc(18px + var(--safe-bottom)); margin-bottom: calc(-24px - var(--safe-bottom)); }
 
 /* -----------------------------------------------------------------------------
    Boutons
@@ -540,7 +545,7 @@ dialog.alert .btn-row { margin-top: 18px; }
    ----------------------------------------------------------------------------- */
 
 .confirm {
-  min-height: calc(100dvh - var(--tabbar-h) - var(--safe-bottom) - 24px);
+  min-height: calc(100dvh - var(--safe-bottom) - 24px);
   display: flex; flex-direction: column; padding: 0 var(--gutter) 30px;
 }
 .confirm-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; padding-top: 32px; }
@@ -576,7 +581,7 @@ dialog.alert .btn-row { margin-top: 18px; }
 .progress span { display: block; height: 100%; background: var(--accent); }
 .progress-label { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-top: 6px; }
 
-.identity { display: flex; align-items: center; gap: 14px; padding: 16px; }
+.identity { display: flex; flex-direction: row; align-items: center; gap: 14px; padding: 16px; }
 .avatar {
   flex: 0 0 auto; width: 52px; height: 52px; border-radius: 26px; overflow: hidden;
   background: var(--accent-tint); color: var(--accent-ink);

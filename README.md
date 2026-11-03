@@ -111,9 +111,14 @@ Esiee-Paris-Salles/
 │   └── README.md                # Documentation API
 │
 ├── frontend/                     # Interface web
-│   ├── index.html               # Page principale
-│   ├── script.js                # Logique JavaScript
-│   ├── styles.css               # Styles CSS
+│   ├── index.html               # Onglet Salles (accueil, recherche, filtres, fiche, réservation)
+│   ├── reservations.html        # Onglet Réservations
+│   ├── profile.html             # Onglet Profil (connexion, favoris)
+│   ├── core.js                  # Noyau partagé : données, horaires, session, suivi
+│   ├── salles.js                # Logique de l'onglet Salles
+│   ├── compte.js                # Logique des onglets Réservations et Profil
+│   ├── app.css                  # Styles (direction « B — Doux », thème clair)
+│   ├── posthog.js               # Initialisation PostHog (CSP script-src 'self')
 │   └── vercel.json              # Configuration Vercel
 │
 └── README.md                     # Ce fichier

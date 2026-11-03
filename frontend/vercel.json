@@ -1,5 +1,13 @@
 {
   "version": 2,
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/settings",
+      "destination": "/profile",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/rb/script.js",

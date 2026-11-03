@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Mes réservations — Salles ESIEE</title>
+
+<meta name="description" content="Tes réservations de salles à l'ESIEE Paris.">
+<meta name="theme-color" content="#F2F5F9">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="app.css?v=20261103c" />
+<!-- Google Identity Services (connexion) -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="core.js?v=20261103c"></script>
+<script src="compte.js?v=20261103c" defer></script>
+</head>
+<body data-page="reservations">
+<div class="page">
+  <header class="page-head">
+    <h1 class="page-title">Réservations</h1>
+  </header>
+  <main id="main" aria-live="polite"></main>
+</div>
+
+<nav class="tabbar" aria-label="Navigation principale">
+  <div class="tabbar-inner">
+    <a class="tab" href="/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M3 21h18M14 12h.01"/></svg>Salles</a>
+    <a class="tab" href="/reservations" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Réservations</a>
+    <a class="tab" href="/profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</a>
+  </div>
+</nav>
+
+<!-- Rybbit Analytics (proxifié pour contourner les adblockers) -->
+<script src="/rb/script.js" data-site-id="a969e55cd4ad" defer></script>
+<!-- PostHog Analytics (proxifié via /ingest) — externalisé pour respecter la CSP -->
+<script src="/posthog.js" defer></script>
+</body>
+</html>

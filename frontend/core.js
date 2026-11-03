@@ -67,6 +67,31 @@ App.toast = function toast(message) {
   toastTimer = setTimeout(() => { el.hidden = true; }, 3500);
 };
 
+// Dialogue de confirmation centré. Résout true si l'action principale est choisie.
+App.confirmDialog = function confirmDialog({ title, text, confirm = 'Confirmer', cancel = 'Annuler', danger = false }) {
+  return new Promise((resolve) => {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'alert';
+    dlg.setAttribute('aria-labelledby', 'alertTitle');
+    dlg.innerHTML = `
+      <h2 id="alertTitle">${App.esc(title)}</h2>
+      ${text ? `<p>${App.esc(text)}</p>` : ''}
+      <div class="btn-row">
+        <button type="button" class="btn btn-soft btn-md" data-v="0">${App.esc(cancel)}</button>
+        <button type="button" class="btn ${danger ? 'btn-danger-outline' : 'btn-primary'} btn-md" data-v="1">${App.esc(confirm)}</button>
+      </div>`;
+    let value = false;
+    dlg.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-v]');
+      if (b) { value = b.dataset.v === '1'; dlg.close(); }
+      else if (e.target === dlg) dlg.close();
+    });
+    dlg.addEventListener('close', () => { dlg.remove(); resolve(value); });
+    document.body.appendChild(dlg);
+    dlg.showModal();
+  });
+};
+
 // -----------------------------------------------------------------------------
 // Salles : épi, étage, libellés
 // -----------------------------------------------------------------------------

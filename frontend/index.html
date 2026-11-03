@@ -12,11 +12,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="app.css?v=20261103b" />
+<link rel="stylesheet" href="app.css?v=20261103c" />
 <!-- Google Identity Services (connexion, uniquement utilisée pour réserver et les favoris) -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="core.js?v=20261103b"></script>
-<script src="salles.js?v=20261103b" defer></script>
+<script src="core.js?v=20261103c"></script>
+<script src="salles.js?v=20261103c" defer></script>
 </head>
 <body data-page="salles">
 <div class="page">
@@ -79,6 +79,9 @@
   <!-- ============================== Fiche salle ============================== -->
   <section class="view" id="viewRoom" hidden aria-labelledby="roomTitle"></section>
 
+  <!-- ============================== Réservation confirmée ============================== -->
+  <section class="view" id="viewConfirm" hidden aria-labelledby="confirmTitle"></section>
+
 </div>
 
 <!-- ============================== Filtres ============================== -->
@@ -95,6 +98,32 @@
     <button type="button" class="btn-reset" id="filterReset">Réinitialiser</button>
     <button type="button" class="btn btn-primary btn-apply" id="filterApply">Voir les salles</button>
   </div>
+</dialog>
+
+<!-- ============================== Réserver ============================== -->
+<dialog class="sheet" id="reserveSheet" aria-labelledby="reserveTitle">
+  <form id="reserveForm" style="display:flex;flex-direction:column;gap:18px;padding:0 var(--gutter) calc(30px + env(safe-area-inset-bottom, 0px));overflow-y:auto">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-head sheet-head--top" style="padding:0">
+      <div>
+        <h2 id="reserveTitle">Réserver la salle</h2>
+        <p class="sheet-sub" id="reserveSub"></p>
+      </div>
+      <button type="button" class="round-btn round-btn--plain" id="reserveClose" aria-label="Fermer" style="margin:-6px -10px 0 0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <fieldset class="filter-group">
+      <legend>Choisis un créneau d'une heure</legend>
+      <div id="reserveSlots" style="display:flex;flex-direction:column;gap:10px"></div>
+    </fieldset>
+    <p class="note">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      On peut réserver jusqu'à 2 heures à l'avance.
+    </p>
+    <p class="form-error" id="reserveError" role="alert" hidden></p>
+    <button type="submit" class="btn btn-primary" id="reserveSubmit">Confirmer</button>
+  </form>
 </dialog>
 
 <!-- ============================== Connexion ============================== -->
@@ -118,7 +147,7 @@
   <div class="tabbar-inner">
     <a class="tab" href="/" aria-current="page">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M3 21h18M14 12h.01"/></svg>Salles</a>
-    <a class="tab" href="/profile#reservations">
+    <a class="tab" href="/reservations">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Réservations</a>
     <a class="tab" href="/profile">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</a>

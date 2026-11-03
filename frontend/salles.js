@@ -586,7 +586,8 @@
         <div class="frise-scale" aria-hidden="true">${scale}</div>
       </section>
       ${facts}
-      ${below}`;
+      ${below}
+      ${reserveCtaHTML(num, free, now)}`;
   }
 
   async function onFavoriteClick(btn) {
@@ -611,7 +612,177 @@
     if (e.target.closest('[data-back]')) { goBack(); return; }
     if (e.target.closest('[data-home]')) { e.preventDefault(); location.hash = ''; return; }
     const fav = e.target.closest('[data-fav]');
-    if (fav) onFavoriteClick(fav);
+    if (fav) { onFavoriteClick(fav); return; }
+    if (e.target.closest('[data-reserve]')) startReservation(currentRoom);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Réservation (créneaux d'une heure, jusqu'à 2 h à l'avance — règle de l'API)
+  // ---------------------------------------------------------------------------
+
+  const reserveSheet = $('#reserveSheet');
+  const viewConfirm = $('#viewConfirm');
+  let reserveRoom = null;
+  let lastReservation = null;
+
+  // Créneaux : heure en cours + 3 suivantes. Réservable si le début est à moins de 2 h
+  // et qu'aucun cours ni aucune réservation ne chevauche le créneau.
+  function reserveSlots(num, now = new Date()) {
+    const busy = App.busyToday(num, now);
+    const h = now.getHours();
+    const out = [];
+    for (let k = 0; k < 4; k++) {
+      const start = App.atHour(now, h + k);
+      const end = App.atHour(now, h + k + 1);
+      if (!App.sameDay(start, now)) break;
+      const clash = busy.find((b) => b.start < end && b.end > start);
+      const tooEarly = start - now > 2 * 3600e3;
+      out.push({ start, end, current: k === 0, clash, tooEarly, ok: !clash && !tooEarly });
+    }
+    return out;
+  }
+
+  function reserveCtaHTML(num, free, now) {
+    const first = reserveSlots(num, now).find((s) => s.ok);
+    if (!first) return '';
+    const label = free ? 'Réserver un créneau' : `Réserver à partir de ${App.fmtTime(first.start)}`;
+    return `<div class="cta-bar"><button type="button" class="btn ${free ? 'btn-primary' : 'btn-outline'}" data-reserve>${esc(label)}</button></div>`;
+  }
+
+  const slotRange = (s) => `${App.fmtTime(s.start)} – ${App.fmtTime(s.end)}`;
+  const slotValue = (s) => `${App.fmtTime(s.start)}-${App.fmtTime(s.end)}`; // format d'origine de time_slot
+
+  function slotHint(s, now) {
+    if (s.clash) return s.clash.kind === 'resa' ? 'Déjà réservée' : 'Occupée · cours';
+    if (s.tooEarly) return `Réservable à partir de ${App.fmtTime(new Date(s.start.getTime() - 2 * 3600e3))}`;
+    if (s.current) return `En cours · il reste ${App.fmtDur((s.end - now) / 60000)}`;
+    return `Dans ${App.fmtDur((s.start - now) / 60000)}`;
+  }
+
+  function myActiveReservation(now = new Date()) {
+    const hist = App.auth.user?.reservations?.history || [];
+    return hist.find((r) => (r.status === 'active' || r.status === 'upcoming') && new Date(r.end_time) > now);
+  }
+
+  function renderReserveSheet() {
+    const now = new Date();
+    const room = App.data.rooms[reserveRoom];
+    const slots = reserveSlots(reserveRoom, now);
+    $('#reserveTitle').textContent = `Réserver la salle ${reserveRoom}`;
+    $('#reserveSub').textContent = `Aujourd'hui · ${App.roomMeta(room, { places: false })}`;
+    const firstOk = slots.findIndex((s) => s.ok);
+    $('#reserveSlots').innerHTML = slots.map((s, i) => `
+      <label class="slot-choice${s.ok ? '' : ' is-disabled'}">
+        <input type="radio" name="slot" value="${slotValue(s)}"${s.ok ? '' : ' disabled'}${i === firstOk ? ' checked' : ''}>
+        <span class="slot-choice-text"><strong>${slotRange(s)}</strong><span>${esc(slotHint(s, now))}</span></span>
+      </label>`).join('');
+    $('#reserveError').hidden = true;
+    updateReserveButton();
+  }
+
+  function updateReserveButton() {
+    const checked = $('#reserveSlots input:checked');
+    const btn = $('#reserveSubmit');
+    btn.disabled = !checked;
+    btn.textContent = checked ? `Confirmer ${checked.value.replace('-', ' – ')}` : 'Aucun créneau libre';
+  }
+
+  $('#reserveSlots').addEventListener('change', updateReserveButton);
+  $('#reserveClose').addEventListener('click', () => reserveSheet.close());
+  reserveSheet.addEventListener('click', (e) => { if (e.target === reserveSheet) reserveSheet.close(); });
+
+  async function startReservation(num) {
+    if (!App.auth.hasServerSession) {
+      const ok = await requireLogin('reserve');
+      if (!ok || !App.auth.hasServerSession) return;
+    }
+    const mine = myActiveReservation();
+    if (mine) {
+      const go = await App.confirmDialog({
+        title: 'Tu as déjà une réservation',
+        text: `Salle ${mine.room_number}, ${App.fmtTime(new Date(mine.start_time))} – ${App.fmtTime(new Date(mine.end_time))}. Libère-la avant d'en faire une autre.`,
+        confirm: 'Voir mes réservations',
+        cancel: 'Fermer'
+      });
+      if (go) location.href = '/reservations';
+      return;
+    }
+    reserveRoom = num;
+    track('reservation_opened', { room: num });
+    renderReserveSheet();
+    reserveSheet.showModal();
+  }
+
+  $('#reserveForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const checked = $('#reserveSlots input:checked');
+    if (!checked) return;
+    const [start, end] = checked.value.split('-');
+    const btn = $('#reserveSubmit');
+    const errBox = $('#reserveError');
+    btn.setAttribute('aria-busy', 'true');
+    errBox.hidden = true;
+    try {
+      const data = await App.auth.request('/reservations', {
+        method: 'POST',
+        body: { room_number: reserveRoom, date: App.localDateISO(new Date()), start_time: start, end_time: end }
+      });
+      const reservations = data.reservations || [];
+      const user = App.auth.user;
+      App.auth.updateUser({
+        reservations: Object.assign({}, user.reservations, {
+          history: reservations,
+          total: reservations.length,
+          active: reservations.filter((r) => r.status === 'active' || r.status === 'upcoming').length
+        })
+      });
+      track('reservation_confirmed', { room: reserveRoom, time_slot: checked.value });
+      await App.refreshActiveReservations();
+      lastReservation = { room: reserveRoom, start, end };
+      reserveSheet.close();
+      location.hash = `reservee/${reserveRoom}`;
+    } catch (err) {
+      if (err.expired) {
+        reserveSheet.close();
+        App.toast('Session expirée. Reconnecte-toi pour réserver.');
+      } else {
+        const network = !err.status;
+        track('reservation_error', { room: reserveRoom, reason: network ? 'network' : (err.message || 'unknown') });
+        errBox.textContent = network ? 'Connexion impossible. Vérifie ton réseau et réessaie.' : err.message;
+        errBox.hidden = false;
+      }
+    } finally {
+      btn.removeAttribute('aria-busy');
+    }
+  });
+
+  function renderConfirm() {
+    const r = lastReservation;
+    const room = App.data.rooms[r.room];
+    viewConfirm.innerHTML = `
+      <div class="confirm">
+        <div class="confirm-main">
+          <span class="confirm-badge" aria-hidden="true">${App.icon.check}</span>
+          <h1 tabindex="-1" id="confirmTitle">C'est réservé</h1>
+          <p class="confirm-lead">La salle est à toi jusqu'à ${esc(r.end)}.</p>
+          <div class="ticket">
+            <div class="ticket-top"><strong>Salle ${esc(r.room)}</strong><span class="pill pill--tint">Aujourd'hui</span></div>
+            <div class="ticket-grid">
+              <div><span>Créneau</span><strong>${esc(r.start)} – ${esc(r.end)}</strong></div>
+              <div><span>Où</span><strong>${esc(room ? App.roomMeta(room, { places: false }) : '')}</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="confirm-actions">
+          <a class="btn btn-primary" href="/reservations">Voir mes réservations</a>
+          <a class="btn btn-ghost" href="#" data-home>Retour aux salles</a>
+        </div>
+      </div>`;
+    $('#confirmTitle').focus();
+  }
+
+  viewConfirm.addEventListener('click', (e) => {
+    if (e.target.closest('[data-home]')) { e.preventDefault(); navDepth = 0; location.hash = ''; }
   });
 
   // ---------------------------------------------------------------------------
@@ -672,6 +843,9 @@
     $('#viewHome').hidden = view !== 'home';
     $('#viewSearch').hidden = view !== 'search';
     viewRoom.hidden = view !== 'room';
+    viewConfirm.hidden = view !== 'confirm';
+    // Comme sur les maquettes, la barre d'onglets n'apparaît que sur l'accueil.
+    document.body.classList.toggle('hide-tabbar', view !== 'home');
     const prev = currentView;
     currentView = view;
     if (view === 'home') { renderHome(); window.scrollTo(0, homeScroll); }
@@ -699,6 +873,10 @@
       } else {
         viewRoom.innerHTML = '<p class="loading-label" role="status">Lecture des emplois du temps…</p>';
       }
+    } else if (/^reservee\//.test(hash) && lastReservation) {
+      trackedRoom = null;
+      show('confirm');
+      renderConfirm();
     } else if (hash === 'recherche') {
       trackedRoom = null;
       show('search');
@@ -727,7 +905,7 @@
 
   // Profondeur approximative : accueil (0) < recherche (1) < fiche (2).
   // Elle sert à savoir si « retour » peut s'appuyer sur l'historique du navigateur.
-  const depthOf = (url) => (url.includes('#salle/') ? 2 : url.includes('#recherche') ? 1 : 0);
+  const depthOf = (url) => (url.includes('#reservee/') ? 3 : url.includes('#salle/') ? 2 : url.includes('#recherche') ? 1 : 0);
   window.addEventListener('hashchange', (e) => {
     const before = depthOf(e.oldURL || ''), after = depthOf(location.href);
     if (after > before) navDepth++;

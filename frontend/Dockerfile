@@ -7,7 +7,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy static frontend files
-COPY index.html profile.html settings.html script.js settings.js styles.css posthog.js /usr/share/nginx/html/
+COPY index.html reservations.html profile.html app.css core.js salles.js compte.js posthog.js /usr/share/nginx/html/
 
 EXPOSE 80
 
