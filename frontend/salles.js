@@ -634,7 +634,9 @@
     for (let k = 0; k < 4; k++) {
       const start = App.atHour(now, h + k);
       const end = App.atHour(now, h + k + 1);
-      if (!App.sameDay(start, now)) break;
+      // L'API reçoit une seule date pour le début et la fin : un créneau qui finit
+      // à minuit (23:00 – 00:00) serait refusé, on s'arrête donc à 22:00 – 23:00.
+      if (!App.sameDay(start, now) || !App.sameDay(end, now)) break;
       const clash = busy.find((b) => b.start < end && b.end > start);
       const tooEarly = start - now > 2 * 3600e3;
       out.push({ start, end, current: k === 0, clash, tooEarly, ok: !clash && !tooEarly });
