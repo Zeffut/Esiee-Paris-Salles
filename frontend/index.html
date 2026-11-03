@@ -1,364 +1,115 @@
 <!doctype html>
-<html lang="fr" data-theme="dark">
+<html lang="fr" data-theme="light">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Salles ESIEE</title>
+<title>Salles libres — ESIEE</title>
 
-<meta name="description" content="Application de consultation des salles ESIEE - Disponibilité en temps réel">
-<meta name="theme-color" content="#0F172A">
+<meta name="description" content="Les salles libres de l'ESIEE Paris en ce moment, et jusqu'à quand.">
+<meta name="theme-color" content="#F2F5F9">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="styles.css?v=20261103" />
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="script.js?v=20261103"></script>
+<link rel="stylesheet" href="app.css?v=20261103b" />
+<script src="core.js?v=20261103b"></script>
+<script src="salles.js?v=20261103b" defer></script>
 </head>
-<body data-page="rooms">
-  <!-- Fixed header zone -->
-  <div class="fixed-header">
-    <button class="hamburger" aria-label="Menu">
-      <span class="lines" aria-hidden="true"></span>
-    </button>
-    <h1 id="page-title" class="title-inline">Salles ESIEE</h1>
-  </div>
+<body data-page="salles">
+<div class="page">
 
-  <main class="app" role="main" aria-labelledby="page-title">
-    <header class="header" role="banner">
+  <!-- ============================== Accueil ============================== -->
+  <section class="view" id="viewHome" aria-labelledby="homeTitle">
+    <header class="page-head">
+      <p class="page-date" id="nowLabel">&nbsp;</p>
+      <h1 class="page-title" id="homeTitle">Salles libres</h1>
     </header>
 
-    <div class="title-section">
-      <p class="eyebrow">ESIEE PARIS <span> / </span> CAMPUS</p>
-      <h2 class="title-main">Une salle pour<br><em>chaque idée.</em></h2>
-      <p class="hero-description">Trouvez votre espace de travail et consultez sa disponibilité en un coup d’œil.</p>
-    </div>
-
-    <div class="search-wrap" aria-hidden="false">
-      <label class="search" aria-label="Recherche">
-        <!-- simple svg loupe -->
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-          <path d="M21 21l-4.35-4.35" stroke="#8f8f8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="10.5" cy="10.5" r="5.5" stroke="#8f8f8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <input type="text" placeholder="Rechercher une salle, un numéro…" aria-label="Recherche des salles" />
-      </label>
-      <button class="filter-btn" id="filterBtn" aria-label="Filtrer les salles">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M22 3H2L10 12.46V19L14 21V12.46L22 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+    <div class="home-tools">
+      <button type="button" class="search-field" id="openSearch">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#55627A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>
+        Chercher une salle, un épi…
       </button>
-    </div>
-
-    <div class="section-heading"><div><span class="section-kicker">EXPLORER LE CAMPUS</span><h2>Les salles</h2></div><span class="section-hint">Sélectionnez une salle pour voir les détails</span></div>
-
-    <!-- Message d'erreur API -->
-    <div class="api-error-message" id="apiErrorMessage" style="display: none;">
-      <div class="error-content">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 9V7a1 1 0 0 0-2 0v2a1 1 0 0 0 2 0zm-1 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm1-9C6.48 3 2 7.48 2 13s4.48 10 10 10 10-4.48 10-10S17.52 3 12 3z" fill="currentColor"/>
-        </svg>
-        <div class="error-text">
-          <h3>API non disponible</h3>
-          <p>Contacter l'administrateur</p>
-        </div>
+      <div class="chips" id="chipRow" role="group" aria-label="Filtres">
+        <span class="skel skel-chip" style="width:86px"></span>
+        <span class="skel skel-chip" style="width:72px"></span>
+        <span class="skel skel-chip" style="width:56px"></span>
+        <span class="skel skel-chip" style="width:64px"></span>
       </div>
     </div>
 
-    <!-- Loader pendant le chargement des salles -->
-    <div class="rooms-loader" id="roomsLoader">
-      <div class="loader-spinner"></div>
-      <p class="loader-text">Chargement des salles...</p>
-    </div>
-
-    <section class="grid" aria-live="polite" aria-label="Liste des salles" id="roomsGrid">
-      <!-- Les salles seront chargées dynamiquement via JavaScript -->
-    </section>
-
-  </main>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <p class="footer-text">
-      Développé par <a href="https://portfolio.zeffut.fr" target="_blank" rel="noopener noreferrer" class="footer-link">Zeffut</a>
-    </p>
-    <a href="https://buymeacoffee.com/zeffut" target="_blank" rel="noopener noreferrer" class="footer-support">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Me soutenir
-    </a>
-  </footer>
-
-  <!-- Menu overlay -->
-  <div class="menu-overlay" id="menuOverlay">
-    <div class="menu-content">
-      <div class="menu-header">Menu</div>
-      <a href="/" class="menu-item">Salles</a>
-      <a href="/profile" class="menu-item" id="profileMenuItem">Profil</a>
-    </div>
-  </div>
-
-  <!-- Filter modal -->
-  <div class="filter-modal" id="filterModal">
-    <div class="filter-modal-content">
-      <div class="filter-modal-header">
-        <h2 class="filter-modal-title">Filtrer les salles</h2><button type="button" class="dialog-close" id="filterClose" aria-label="Fermer les filtres">×</button>
-      </div>
-      <div class="filter-options">
-        <div class="filter-group">
-          <span class="filter-group-label">Statut</span>
-          <div class="filter-checkboxes">
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-libre">
-              <span class="checkbox-label">Libre</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" id="filter-occupe">
-              <span class="checkbox-label">Occupé</span>
-            </label>
-          </div>
+    <div id="homeContent" aria-live="polite">
+      <!-- État de chargement (remplacé dès réception des données) -->
+      <div aria-busy="true">
+        <div class="skel-hero skel"></div>
+        <p class="loading-label" role="status">Lecture des emplois du temps…</p>
+        <div class="stack">
+          <div class="skel-card"><div class="skel-row"><span class="skel" style="width:110px;height:16px"></span><span class="skel" style="width:80px;height:16px"></span></div><span class="skel skel--soft" style="width:170px;height:12px"></span><span class="skel skel--soft" style="height:6px;border-radius:3px"></span></div>
+          <div class="skel-card"><div class="skel-row"><span class="skel" style="width:110px;height:16px"></span><span class="skel" style="width:80px;height:16px"></span></div><span class="skel skel--soft" style="width:170px;height:12px"></span><span class="skel skel--soft" style="height:6px;border-radius:3px"></span></div>
+          <div class="skel-card"><div class="skel-row"><span class="skel" style="width:110px;height:16px"></span><span class="skel" style="width:80px;height:16px"></span></div><span class="skel skel--soft" style="width:170px;height:12px"></span><span class="skel skel--soft" style="height:6px;border-radius:3px"></span></div>
         </div>
-        <div class="filter-group">
-          <span class="filter-group-label">Type de salle</span>
-          <div class="filter-checkboxes">
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-classique">
-              <span class="checkbox-label">Salle classique</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-amphi">
-              <span class="checkbox-label">Amphithéâtre</span>
-            </label>
-          </div>
-        </div>
-        <div class="filter-group">
-          <span class="filter-group-label">Epis</span>
-          <div class="filter-checkboxes">
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-rue">
-              <span class="checkbox-label">Rue</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-epis1">
-              <span class="checkbox-label">Epis 1</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-epis2">
-              <span class="checkbox-label">Epis 2</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-epis3">
-              <span class="checkbox-label">Epis 3</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-epis4">
-              <span class="checkbox-label">Epis 4</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" id="filter-epis5">
-              <span class="checkbox-label">Epis 5</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" id="filter-epis6">
-              <span class="checkbox-label">Epis 6</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" id="filter-epis7">
-              <span class="checkbox-label">Epis 7</span>
-            </label>
-          </div>
-        </div>
-        <div class="filter-group">
-          <span class="filter-group-label">Étage</span>
-          <div class="filter-checkboxes">
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-floor0">
-              <span class="checkbox-label">Sous-sol</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-floor1">
-              <span class="checkbox-label">1er étage</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-floor2">
-              <span class="checkbox-label">2ème étage</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-floor3">
-              <span class="checkbox-label">3ème étage</span>
-            </label>
-            <label class="filter-checkbox">
-              <input type="checkbox" checked id="filter-floor4">
-              <span class="checkbox-label">4ème étage</span>
-            </label>
-          </div>
-        </div>
-      </div>
-      <div class="filter-actions">
-        <button class="filter-reset" id="filterReset">Réinitialiser</button>
-        <button class="filter-apply" id="filterApply">Appliquer</button>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Room details modal -->
-  <div class="room-modal" id="roomModal">
-    <div class="room-modal-content">
-      <div class="room-modal-header">
-        <h2 class="room-modal-title" id="roomModalTitle">Salle 0110</h2><button type="button" class="dialog-close" id="roomClose" aria-label="Fermer les détails">×</button>
-      </div>
-      <div class="room-info-grid">
-        <div class="room-info-item">
-          <span class="room-info-label">Statut</span>
-          <span class="room-status" id="roomModalStatus">libre</span>
-        </div>
-        <div class="room-info-item">
-          <span class="room-info-label">Nom complet</span>
-          <span class="room-info-value" id="roomModalName">Salle de cours 0110</span>
-        </div>
-        <div class="room-info-item">
-          <span class="room-info-label">Type de tableau</span>
-          <span class="room-info-value" id="roomModalBoard">Tableau blanc interactif</span>
-        </div>
-        <div class="room-info-item">
-          <span class="room-info-label">Nombre de places</span>
-          <span class="room-info-value" id="roomModalCapacity">30 places</span>
-        </div>
-        <div class="room-info-item">
-          <span class="room-info-label">Type de salle</span>
-          <span class="room-info-value" id="roomModalType">Salle classique</span>
-        </div>
-        <div class="room-info-item">
-          <span class="room-info-label">Epis</span>
-          <span class="room-info-value" id="roomModalFloor">Sous-sol</span>
-        </div>
-      </div>
-
-      <!-- Section emploi du temps -->
-      <div class="room-schedule-section">
-        <div id="roomModalSchedule">
-          <!-- L'emploi du temps sera chargé dynamiquement -->
-        </div>
-      </div>
-
-      <!-- Bouton de réservation -->
-      <div class="room-modal-actions">
-        <button class="reserve-btn-modal" id="roomModalReserveBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-            <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          Réserver cette salle
+  <!-- ============================== Recherche ============================== -->
+  <section class="view" id="viewSearch" hidden aria-label="Recherche">
+    <div class="search-bar">
+      <label class="search-input">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#55627A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>
+        <span class="sr-only">Rechercher une salle</span>
+        <input type="search" id="searchInput" placeholder="Numéro, épi, amphi…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        <button type="button" class="icon-clear" id="searchClear" aria-label="Effacer" hidden>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
-      </div>
+      </label>
+      <button type="button" class="text-btn" id="searchCancel">Annuler</button>
     </div>
+    <p class="search-summary" id="searchSummary" aria-live="polite" hidden></p>
+    <ul class="stack" id="searchResults"></ul>
+    <section class="section" id="recentSection" hidden>
+      <h2 class="section-label">Recherches récentes</h2>
+      <div class="chips chips--wrap" id="recentChips"></div>
+    </section>
+  </section>
+
+  <!-- ============================== Fiche salle ============================== -->
+  <section class="view" id="viewRoom" hidden aria-labelledby="roomTitle"></section>
+
+</div>
+
+<!-- ============================== Filtres ============================== -->
+<dialog class="sheet sheet--tall" id="filterSheet" aria-labelledby="filterTitle">
+  <span class="sheet-handle" aria-hidden="true"></span>
+  <div class="sheet-head">
+    <h2 id="filterTitle">Filtres</h2>
+    <button type="button" class="round-btn round-btn--plain" id="filterClose" aria-label="Fermer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
   </div>
-
-  <!-- Modal de réservation -->
-  <div class="reservation-modal" id="reservationModal">
-    <div class="reservation-modal-content">
-      <div class="reservation-modal-header">
-        <h2 class="reservation-modal-title" id="reservationModalTitle">Réserver la salle</h2>
-        <button class="reservation-modal-close" id="reservationModalClose" aria-label="Fermer la réservation">×</button>
-      </div>
-
-      <form id="reservationForm" class="reservation-form">
-        <div class="form-group">
-          <label for="reservationTimeSlot">Choisir un créneau (1 heure)</label>
-          <select id="reservationTimeSlot" name="timeSlot" required>
-            <!-- Les créneaux seront générés dynamiquement -->
-          </select>
-        </div>
-
-        <div class="reservation-info">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-            <path d="M12 8v4l3 3" stroke="currentColor" stroke-width="2"/>
-          </svg>
-          <span>Réservations disponibles uniquement pour les 2 prochaines heures</span>
-        </div>
-
-        <div class="reservation-warning" id="reservationWarning" style="display: none;">
-          <!-- Messages d'avertissement -->
-        </div>
-
-        <div class="reservation-actions">
-          <button type="button" class="btn-secondary" id="cancelReservation">Annuler</button>
-          <button type="submit" class="btn-primary" id="confirmReservation">Confirmer la réservation</button>
-        </div>
-      </form>
-    </div>
+  <div class="sheet-body" id="filterGroups"></div>
+  <div class="sheet-foot">
+    <button type="button" class="btn-reset" id="filterReset">Réinitialiser</button>
+    <button type="button" class="btn btn-primary btn-apply" id="filterApply">Voir les salles</button>
   </div>
+</dialog>
 
-  <!-- Modals de popup personnalisés -->
-  <div class="custom-alert-overlay" id="customAlertOverlay">
-    <div class="custom-alert-modal">
-      <div class="custom-alert-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div class="custom-alert-content">
-        <h3 class="custom-alert-title" id="customAlertTitle">Information</h3>
-        <p class="custom-alert-message" id="customAlertMessage">Message</p>
-      </div>
-      <div class="custom-alert-actions">
-        <button class="custom-alert-btn" id="customAlertBtn">OK</button>
-      </div>
-    </div>
+<!-- ============================== Onglets ============================== -->
+<nav class="tabbar" aria-label="Navigation principale">
+  <div class="tabbar-inner">
+    <a class="tab" href="/" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M3 21h18M14 12h.01"/></svg>Salles</a>
+    <a class="tab" href="/profile#reservations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Réservations</a>
+    <a class="tab" href="/profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</a>
   </div>
+</nav>
 
-  <div class="custom-confirm-overlay" id="customConfirmOverlay">
-    <div class="custom-confirm-modal">
-      <div class="custom-confirm-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div class="custom-confirm-content">
-        <h3 class="custom-confirm-title" id="customConfirmTitle">Confirmation</h3>
-        <p class="custom-confirm-message" id="customConfirmMessage">Message</p>
-      </div>
-      <div class="custom-confirm-actions">
-        <button class="custom-confirm-btn-cancel" id="customConfirmCancel">Annuler</button>
-        <button class="custom-confirm-btn-confirm" id="customConfirmBtn">Confirmer</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bottom Navigation -->
-  <nav class="bottom-nav" role="navigation" aria-label="Navigation principale">
-    <a class="nav-tab nav-active" href="/" aria-label="Salles">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
-        <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
-        <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
-        <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
-      </svg>
-      <span>Salles</span>
-    </a>
-    <a class="nav-tab" href="/profile" aria-label="Profil">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
-        <path d="M4 20c0-3.314 3.582-6 8-6s8 2.686 8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <span>Profil</span>
-    </a>
-  </nav>
-
-  <!-- Rybbit Analytics (proxifié pour contourner les adblockers) -->
-  <script
-    src="/rb/script.js"
-    data-site-id="a969e55cd4ad"
-    defer
-  ></script>
-
-  <!-- PostHog Analytics (proxifié via /ingest, anti-adblock) — externalisé pour respecter la CSP -->
-  <script src="/posthog.js" defer></script>
+<!-- Rybbit Analytics (proxifié pour contourner les adblockers) -->
+<script src="/rb/script.js" data-site-id="a969e55cd4ad" defer></script>
+<!-- PostHog Analytics (proxifié via /ingest) — externalisé pour respecter la CSP -->
+<script src="/posthog.js" defer></script>
 </body>
 </html>
