@@ -238,4 +238,8 @@
   // Les infos de salle (épi, statut des favoris) viennent de /rooms, chargé en arrière-plan.
   App.loadRooms().then(render);
   setInterval(() => { if (!document.hidden) render(); }, 30000);
+  // Retour sur l'onglet (mobile) : session revérifiée et affichage à jour tout de suite.
+  const resume = () => { if (!document.hidden) { App.auth.refresh(); render(); } };
+  document.addEventListener('visibilitychange', resume);
+  window.addEventListener('pageshow', (e) => { if (e.persisted) resume(); });
 })();

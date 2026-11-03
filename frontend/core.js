@@ -72,6 +72,42 @@ App.setHTML = function setHTML(el, html) {
 };
 
 let toastTimer = null;
+// -----------------------------------------------------------------------------
+// Mise à jour automatique (iPhone / Android) : un onglet mobile reste ouvert des
+// jours, gelé en arrière-plan. Au retour au premier plan, on compare la version
+// des fichiers (paramètre ?v= de core.js) à celle servie par le serveur, et on
+// recharge la page si elle a changé.
+// -----------------------------------------------------------------------------
+
+App.BUILD = (function () {
+  const s = document.querySelector('script[src*="core.js"]');
+  const m = s && s.getAttribute('src').match(/[?&]v=([\w.-]+)/);
+  return m ? m[1] : null;
+})();
+
+let lastUpdateCheck = Date.now();
+App.checkForUpdate = async function checkForUpdate(force) {
+  if (!App.BUILD) return;
+  if (!force && Date.now() - lastUpdateCheck < 2 * 60e3) return;
+  lastUpdateCheck = Date.now();
+  try {
+    const res = await fetch(`${location.pathname}?_=${Date.now()}`, { cache: 'no-store', credentials: 'same-origin' });
+    if (!res.ok) return;
+    const m = (await res.text()).match(/core\.js\?v=([\w.-]+)/);
+    if (!m || m[1] === App.BUILD) return;
+    // Garde-fou : une seule tentative par version, pour ne jamais boucler.
+    const key = `reloadedFor:${m[1]}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    location.reload();
+  } catch (e) { /* hors ligne : on réessaiera au prochain retour */ }
+};
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden) App.checkForUpdate(); });
+// Safari et Chrome restaurent souvent la page depuis le cache « retour arrière »
+// sans la recharger : on revérifie dans ce cas aussi.
+window.addEventListener('pageshow', (e) => { if (e.persisted) App.checkForUpdate(true); });
+
 App.toast = function toast(message) {
   let el = document.getElementById('toast');
   if (!el) {
@@ -657,6 +693,7 @@ App.auth = (function () {
     get hasServerSession() { return !!(user && token); },
     onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
     init() { initGoogle(); return restore(); },
+    refresh() { return restore(); },
     login, logout, request, updateUser
   };
 })();

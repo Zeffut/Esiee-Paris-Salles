@@ -971,10 +971,18 @@
   }, 30000);
 
   // Données rechargées au retour sur l'onglet si elles ont plus de 10 minutes.
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden || !App.data.loadedAt) return;
-    if (Date.now() - App.data.loadedAt.getTime() > 10 * 60e3 || loadState !== 'ok') load(false);
-  });
+  // Retour sur l'onglet (mobile : minuteries suspendues en arrière-plan) ou page
+  // restaurée depuis le cache « retour arrière » : statuts recalculés tout de suite,
+  // données rechargées si elles ont plus de 10 minutes.
+  function onResume() {
+    if (document.hidden || loadState === 'loading') return;
+    if (!App.data.loadedAt || Date.now() - App.data.loadedAt.getTime() > 10 * 60e3 || loadState !== 'ok') { load(false); return; }
+    if (currentView === 'home' && !filterSheet.open) renderHome();
+    else if (currentView === 'room') renderRoom();
+    else if (currentView === 'search') runSearch();
+  }
+  document.addEventListener('visibilitychange', onResume);
+  window.addEventListener('pageshow', (e) => { if (e.persisted) onResume(); });
 
   // ---------------------------------------------------------------------------
   // Démarrage
