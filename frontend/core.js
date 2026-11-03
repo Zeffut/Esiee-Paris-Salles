@@ -371,3 +371,250 @@ App.icon = {
   noResult: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#55627A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5M8 10.5h5"/></svg>',
   external: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#55627A" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>'
 };
+
+// -----------------------------------------------------------------------------
+// Session et connexion Google (reprise de l'ancien script.js)
+// Clés localStorage inchangées : user, authToken, csrfToken, lastLoginTime
+// -----------------------------------------------------------------------------
+
+App.auth = (function () {
+  const GOOGLE_CLIENT_ID = '280602510509-ep76jc9na5ae6qbdmcfm7sria30c0acb.apps.googleusercontent.com';
+  const SESSION_MAX_AGE = 7 * 24 * 3600e3;
+
+  let user = null, token = null, csrf = null;
+  let loginResolve = null;
+  let googleReady = false;
+  const listeners = new Set();
+
+  const emit = () => listeners.forEach((cb) => { try { cb(user); } catch (e) { console.error(e); } });
+  const emailDomain = (u) => (u && u.email ? u.email.split('@')[1] : 'unknown');
+
+  function persist() {
+    try {
+      localStorage.setItem('user', JSON.stringify(user));
+      if (token) localStorage.setItem('authToken', token); else localStorage.removeItem('authToken');
+      if (csrf) localStorage.setItem('csrfToken', csrf); else localStorage.removeItem('csrfToken');
+    } catch (e) {}
+  }
+
+  function identify() {
+    if (!user) return;
+    if (window.rybbit) { try { window.rybbit.identify(user.email || user.id, { name: user.name, email: user.email }); } catch (e) {} }
+    if (window.posthog) {
+      try { window.posthog.identify(user.email || user.id, { name: user.name, email: user.email, email_domain: emailDomain(user) }); } catch (e) {}
+    }
+  }
+
+  function finishLogin(ok) {
+    if (loginResolve) { const r = loginResolve; loginResolve = null; r(ok); }
+  }
+
+  function setSession(u, t, c) {
+    user = u; token = t || null; csrf = c || null;
+    persist();
+    try { localStorage.setItem('lastLoginTime', Date.now().toString()); } catch (e) {}
+    identify();
+    emit();
+  }
+
+  function clearLocal() {
+    ['user', 'authToken', 'csrfToken', 'lastLoginTime'].forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} });
+    user = null; token = null; csrf = null;
+  }
+
+  async function backendLogin(body) {
+    try {
+      const res = await fetch(`${App.API}/auth/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      const result = await res.json();
+      return result && result.success ? result : null;
+    } catch (e) {
+      console.warn('Backend non disponible :', e);
+      return null;
+    }
+  }
+
+  function parseJwt(jwt) {
+    const part = jwt.split('.')[1];
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const bin = atob(padded);
+    const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
+  }
+
+  async function handleCredential(response) {
+    try {
+      const result = await backendLogin({ credential: response.credential });
+      if (result) {
+        setSession(result.user, result.session_token, result.csrf_token);
+        App.track('login_success', { method: 'backend', email_domain: emailDomain(result.user) });
+        finishLogin(true);
+        return;
+      }
+      // Repli : connexion locale sans serveur (réservations et favoris indisponibles)
+      const info = parseJwt(response.credential);
+      setSession({ id: info.sub, name: info.name, email: info.email, picture: info.picture }, null, null);
+      App.track('login_success', { method: 'local', email_domain: emailDomain(user) });
+      finishLogin(true);
+    } catch (error) {
+      console.error('Erreur de connexion :', error);
+      App.track('login_error');
+      finishLogin(false);
+    }
+  }
+
+  async function oauthFallback() {
+    if (!(window.google && google.accounts && google.accounts.oauth2)) { finishLogin(false); return; }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'profile email',
+      callback: async (resp) => {
+        if (!resp || !resp.access_token) { finishLogin(false); return; }
+        try {
+          const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: `Bearer ${resp.access_token}` } });
+          if (!r.ok) throw new Error('profil');
+          const info = await r.json();
+          const pseudo = btoa(JSON.stringify({ sub: info.id, name: info.name, email: info.email, picture: info.picture }));
+          const result = await backendLogin({ credential: pseudo, oauth_token: resp.access_token });
+          if (result) setSession(result.user, result.session_token, result.csrf_token);
+          else setSession({ id: info.id, name: info.name, email: info.email, picture: info.picture }, null, null);
+          finishLogin(true);
+        } catch (e) {
+          console.error('Erreur OAuth :', e);
+          finishLogin(false);
+        }
+      },
+      error_callback: () => finishLogin(false)
+    });
+    client.requestAccessToken();
+  }
+
+  function initGoogle() {
+    if (window.google && google.accounts && google.accounts.id) {
+      try {
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleCredential,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+          use_fedcm_for_prompt: true
+        });
+        googleReady = true;
+      } catch (e) { console.error('Initialisation Google :', e); }
+    } else {
+      setTimeout(initGoogle, 800);
+    }
+  }
+
+  // Ouvre la connexion Google. Résout true si l'utilisateur est connecté à la fin.
+  function login() {
+    return new Promise((resolve) => {
+      if (!googleReady || !window.google) {
+        App.toast('La connexion Google n\'est pas encore prête. Réessaie dans un instant.');
+        resolve(false);
+        return;
+      }
+      loginResolve = resolve;
+      google.accounts.id.prompt((n) => {
+        if (n.isNotDisplayed() || n.isSkippedMoment()) oauthFallback();
+        else if (n.isDismissedMoment() && n.getDismissedReason() !== 'credential_returned') finishLogin(false);
+      });
+    });
+  }
+
+  async function logout() {
+    if (token) {
+      try {
+        const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+        if (csrf) headers['X-CSRF-Token'] = csrf;
+        await fetch(`${App.API}/auth/logout`, { method: 'POST', headers });
+      } catch (e) {}
+    }
+    App.track('logout');
+    if (window.rybbit && window.rybbit.clearUserId) { try { window.rybbit.clearUserId(); } catch (e) {} }
+    if (window.posthog && window.posthog.reset) { try { window.posthog.reset(); } catch (e) {} }
+    clearLocal();
+    if (window.google && google.accounts && google.accounts.id) { try { google.accounts.id.disableAutoSelect(); } catch (e) {} }
+    emit();
+  }
+
+  // Session expirée côté serveur : même traitement que l'ancien code (signOut, donc
+  // événement « logout »), pour que les chiffres restent comparables.
+  function expire() {
+    logout();
+  }
+
+  async function restore() {
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem('user') || 'null'); } catch (e) {}
+    if (!stored) return;
+    const last = Number(localStorage.getItem('lastLoginTime') || 0);
+    if (last && Date.now() - last >= SESSION_MAX_AGE) { logout(); return; }
+    user = stored;
+    token = localStorage.getItem('authToken');
+    csrf = localStorage.getItem('csrfToken');
+    identify();
+    emit();
+    if (!token) return;
+    try {
+      const res = await fetch(`${App.API}/auth/verify`, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
+      const result = await res.json();
+      if (result && result.success) { user = result.user; persist(); emit(); }
+      else expire();
+    } catch (e) {
+      // Réseau indisponible : on garde la session locale
+    }
+  }
+
+  // Requête authentifiée vers l'API. Lève une erreur { expired: true } si la session n'est plus valide.
+  async function request(path, { method = 'GET', body } = {}) {
+    if (!token) { const err = new Error('Session absente'); err.expired = true; throw err; }
+    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+    const res = await fetch(`${App.API}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    let data = null;
+    try { data = await res.json(); } catch (e) {}
+    if (res.status === 401) { expire(); const err = new Error('Session expirée'); err.expired = true; throw err; }
+    if (!res.ok || !data || data.success === false) {
+      const err = new Error((data && data.error) || `Erreur ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function updateUser(patch) {
+    if (!user) return;
+    user = Object.assign({}, user, patch);
+    persist();
+    emit();
+  }
+
+  return {
+    get user() { return user; },
+    get loggedIn() { return !!user; },
+    get hasServerSession() { return !!(user && token); },
+    onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
+    init() { initGoogle(); return restore(); },
+    login, logout, request, updateUser
+  };
+})();
+
+// -----------------------------------------------------------------------------
+// Favoris (stockés côté API, liés au compte)
+// -----------------------------------------------------------------------------
+
+App.favorites = {
+  list() { const u = App.auth.user; return (u && Array.isArray(u.favorites)) ? u.favorites : []; },
+  has(num) { return this.list().includes(String(num)); },
+  async toggle(num) {
+    num = String(num);
+    const adding = !this.has(num);
+    const data = await App.auth.request(`/favorites/${encodeURIComponent(num)}`, { method: adding ? 'PUT' : 'DELETE' });
+    App.auth.updateUser({ favorites: data.favorites || [] });
+    App.track(adding ? 'favorite_added' : 'favorite_removed', { room: num, count: (data.favorites || []).length });
+    return adding;
+  }
+};

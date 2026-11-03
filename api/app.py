@@ -3,6 +3,7 @@
 from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
 import requests
+import re
 import threading
 from collections import defaultdict
 from cache_manager import (
@@ -1021,6 +1022,7 @@ def auth_login():
                 'picture': user['picture'],
                 'role': user['role'],
                 'preferences': user['preferences'],
+                'favorites': user.get('favorites', []),
                 'reservations': user.get('reservations', {
                     'total': 0,
                     'active': 0,
@@ -1088,6 +1090,7 @@ def auth_verify():
                 'picture': user['picture'],
                 'role': user['role'],
                 'preferences': user['preferences'],
+                'favorites': user.get('favorites', []),
                 'reservations': user.get('reservations', {
                     'total': 0,
                     'active': 0,
@@ -1149,6 +1152,66 @@ def auth_profile():
             'success': False,
             'error': 'Erreur interne du serveur'
         }), 500
+
+# =============================================================================
+# FAVORIS (salles favorites d'un utilisateur connecté)
+# =============================================================================
+
+FAVORITE_ROOM_PATTERN = re.compile(r'^[0-9]{3,4}$')
+MAX_FAVORITES = 50
+favorites_lock = threading.Lock()
+
+@app.route('/api/favorites', methods=['GET'])
+def get_favorites():
+    """Lister les salles favorites de l'utilisateur connecté"""
+    user = get_current_user_from_request()
+    if not user:
+        return jsonify({'success': False, 'error': 'Authentification requise'}), 401
+    return jsonify({'success': True, 'favorites': user.get('favorites', [])})
+
+@app.route('/api/favorites/<room_number>', methods=['PUT', 'DELETE'])
+@rate_limit(max_requests=300, window_seconds=3600)  # 300 requêtes / heure
+@csrf_protected
+def update_favorite(room_number):
+    """Ajouter (PUT) ou retirer (DELETE) une salle des favoris — opérations idempotentes"""
+    try:
+        user = get_current_user_from_request()
+        if not user:
+            return jsonify({'success': False, 'error': 'Authentification requise'}), 401
+
+        if not FAVORITE_ROOM_PATTERN.match(room_number or ''):
+            return jsonify({'success': False, 'error': 'Numéro de salle invalide'}), 400
+
+        with favorites_lock:
+            favorites = [f for f in user.get('favorites', []) if isinstance(f, str)]
+
+            if request.method == 'PUT':
+                if room_number not in favorites:
+                    if len(favorites) >= MAX_FAVORITES:
+                        return jsonify({
+                            'success': False,
+                            'error': f'{MAX_FAVORITES} favoris au maximum'
+                        }), 400
+                    favorites.append(room_number)
+            else:
+                favorites = [f for f in favorites if f != room_number]
+
+            user['favorites'] = favorites
+            user_manager.users_data['users'][user['user_id']] = user
+            user_manager._save_users()
+
+        capture_event(user['user_id'], 'favorite_updated_server', {
+            'room': room_number,
+            'action': 'add' if request.method == 'PUT' else 'remove',
+            'count': len(favorites),
+        })
+
+        return jsonify({'success': True, 'favorites': favorites})
+
+    except Exception as e:
+        print(f"Erreur lors de la mise à jour des favoris: {e}")
+        capture_exception(e, properties={'endpoint': '/api/favorites', 'method': request.method})
+        return jsonify({'success': False, 'error': 'Erreur interne du serveur'}), 500
 
 @app.route('/api/admin/users', methods=['GET'])
 def admin_get_users():

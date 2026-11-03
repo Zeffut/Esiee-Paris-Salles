@@ -493,6 +493,52 @@
       </li>`).join('');
   }
 
+  function boardLabel(board) {
+    const b = String(board || '').replace(/^tableau\s+/i, '').trim();
+    return b ? b.charAt(0).toUpperCase() + b.slice(1) : '—';
+  }
+
+  function starHTML(num) {
+    const on = App.favorites.has(num);
+    return `<button type="button" class="round-btn" data-fav aria-pressed="${on}" aria-label="${on ? 'Retirer des favoris' : 'Ajouter aux favoris'}">${App.icon.star}</button>`;
+  }
+
+  function sameEpiHTML(num, room, now) {
+    const others = App.data.numbers
+      .filter((n) => n !== num && App.data.rooms[n].epis === room.epis)
+      .map((n) => ({ num: n, room: App.data.rooms[n], state: App.roomState(n, now) }))
+      .filter((it) => it.state.status === 'libre')
+      .sort(byAvailability)
+      .slice(0, 3);
+    const where = room.epis === 'Rue' ? 'même bâtiment' : 'même épi';
+    if (!others.length) {
+      return `
+        <section class="section" style="margin-top:22px">
+          <h2 class="day-head">Libres maintenant, ${where}</h2>
+          <p class="room-meta" style="font-size:15px">Aucune autre salle n'est libre ici pour l'instant.</p>
+          <a class="text-btn" href="#" data-home style="align-self:flex-start;padding:4px 0">Voir toutes les salles libres</a>
+        </section>`;
+    }
+    return `
+      <section class="section" style="margin-top:22px">
+        <h2 class="day-head">Libres maintenant, ${where}</h2>
+        <ul style="display:flex;flex-direction:column;gap:8px">
+          ${others.map((it) => `
+            <li>
+              <a class="room-card" href="#salle/${esc(it.num)}" data-room="${esc(it.num)}" data-source="same_epi">
+                <div class="room-card-row">
+                  <div class="room-card-col">
+                    <span class="room-num room-num--sm">Salle ${esc(it.num)}</span>
+                    <span class="room-meta">${esc(App.roomMeta(it.room, { epi: false }))}</span>
+                  </div>
+                  <span class="room-until">${esc(App.stateLabels(it.state, now).until)}</span>
+                </div>
+              </a>
+            </li>`).join('')}
+        </ul>
+      </section>`;
+  }
+
   function renderRoom() {
     const num = currentRoom;
     const room = App.data.rooms[num];
@@ -506,9 +552,25 @@
     const state = App.roomState(num, now);
     const lbl = App.stateLabels(state, now);
     const free = state.status === 'libre';
+    const scale = [8, 11, 14, 17, 20].map((h) => `<span>${h}h</span>`).join('');
+
+    const facts = free ? `
+      <dl class="facts">
+        <div class="fact"><dt>places</dt><dd class="fact-big">${esc(room.capacity || '—')}</dd></div>
+        <div class="fact"><dt>tableau</dt><dd>${esc(boardLabel(room.board))}</dd></div>
+        <div class="fact"><dt>type</dt><dd>${App.isAmphi(room) ? 'Amphi' : 'Salle de cours'}</dd></div>
+      </dl>` : '';
+
+    const below = free ? `
+      <section class="section" style="margin-top:18px">
+        <h2 class="day-head">Aujourd'hui</h2>
+        <ol class="slots">${slotsHTML(num, now)}</ol>
+      </section>` : sameEpiHTML(num, room, now);
+
     viewRoom.innerHTML = `
       <header class="room-head">
         <button type="button" class="back-btn" data-back>${App.icon.chevronLeft}${esc(roomBackLabel)}</button>
+        ${starHTML(num)}
       </header>
       <section class="room-title">
         <p>${esc(App.roomMeta(room, { places: !free }))}</p>
@@ -520,16 +582,70 @@
           <strong>${esc(lbl.until)}</strong>
           ${lbl.rest ? `<span class="status-rest">${esc(lbl.rest)}</span>` : ''}
         </div>
+        ${App.friseHTML(num, now, true)}
+        <div class="frise-scale" aria-hidden="true">${scale}</div>
       </section>
-      <section class="section" style="margin-top:18px">
-        <h2 class="day-head">Aujourd'hui</h2>
-        <ol class="slots">${slotsHTML(num, now)}</ol>
-      </section>`;
+      ${facts}
+      ${below}`;
+  }
+
+  async function onFavoriteClick(btn) {
+    const num = currentRoom;
+    if (!App.auth.hasServerSession) {
+      const ok = await requireLogin('favorites');
+      if (!ok || !App.auth.hasServerSession) return;
+    }
+    btn.setAttribute('aria-busy', 'true');
+    try {
+      const added = await App.favorites.toggle(num);
+      App.toast(added ? `Salle ${num} ajoutée aux favoris` : `Salle ${num} retirée des favoris`);
+    } catch (err) {
+      if (err.expired) App.toast('Session expirée. Reconnecte-toi.');
+      else if (err.status === 404) App.toast('Les favoris ne sont pas encore disponibles.');
+      else App.toast('Impossible de mettre à jour les favoris.');
+    }
+    if (currentView === 'room' && currentRoom === num) renderRoom();
   }
 
   viewRoom.addEventListener('click', (e) => {
-    if (e.target.closest('[data-back]')) goBack();
+    if (e.target.closest('[data-back]')) { goBack(); return; }
+    if (e.target.closest('[data-home]')) { e.preventDefault(); location.hash = ''; return; }
+    const fav = e.target.closest('[data-fav]');
+    if (fav) onFavoriteClick(fav);
   });
+
+  // ---------------------------------------------------------------------------
+  // Connexion (demandée uniquement pour réserver ou garder des favoris)
+  // ---------------------------------------------------------------------------
+
+  const loginSheet = $('#loginSheet');
+  const LOGIN_COPY = {
+    reserve: ['Connecte-toi pour réserver', "Pas besoin de compte pour voir les salles libres. La connexion sert seulement à réserver, avec ton adresse ESIEE."],
+    favorites: ['Connecte-toi pour garder tes favoris', 'Tes salles favorites sont liées à ton compte ESIEE et te suivent sur tous tes appareils.']
+  };
+
+  function requireLogin(reason) {
+    return new Promise((resolve) => {
+      const [title, text] = LOGIN_COPY[reason] || LOGIN_COPY.reserve;
+      $('#loginTitle').textContent = title;
+      $('#loginText').textContent = text;
+      const btn = $('#loginGoogle');
+      btn.removeAttribute('aria-busy');
+      let done = false;
+      const finish = (ok) => { if (done) return; done = true; if (loginSheet.open) loginSheet.close(); resolve(ok); };
+      loginSheet.onclose = () => finish(App.auth.hasServerSession);
+      btn.onclick = async () => {
+        btn.setAttribute('aria-busy', 'true');
+        const ok = await App.auth.login();
+        btn.removeAttribute('aria-busy');
+        if (ok && !App.auth.hasServerSession) App.toast('Connexion au serveur impossible pour le moment.');
+        if (ok) finish(App.auth.hasServerSession);
+      };
+      loginSheet.showModal();
+    });
+  }
+  $('#loginClose').addEventListener('click', () => loginSheet.close());
+  loginSheet.addEventListener('click', (e) => { if (e.target === loginSheet) loginSheet.close(); });
 
   // ---------------------------------------------------------------------------
   // Navigation entre vues (hash : #recherche, #salle/1201)
@@ -567,6 +683,8 @@
   }
 
   function route(fromUser) {
+    // Une navigation (retour du navigateur, lien) ferme les feuilles ouvertes.
+    $$('dialog[open]').forEach((d) => d.close());
     const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
     const m = hash.match(/^salle\/([0-9A-Za-z-]+)$/);
     if (m) {
@@ -594,13 +712,15 @@
   function viewRoomTracked(fromUser) {
     if (!currentRoom || trackedRoom === currentRoom) return;
     trackedRoom = currentRoom;
+    // Un retour arrière vers une fiche déjà vue n'est pas une nouvelle ouverture.
+    if (fromUser && !pendingSource) return;
     const state = App.roomState(currentRoom);
     track('room_viewed', {
       room: currentRoom,
       status: state.status,
       building: App.roomEpis(currentRoom),
       floor: App.roomFloor(currentRoom),
-      source: pendingSource || (fromUser ? 'link' : 'deeplink')
+      source: pendingSource || 'deeplink'
     });
     pendingSource = null;
   }
@@ -649,6 +769,8 @@
   // Démarrage
   // ---------------------------------------------------------------------------
 
+  App.auth.onChange(() => { if (currentView === 'room' && loadState !== 'loading') renderRoom(); });
+  App.auth.init();
   renderChips();
   $('#nowLabel').textContent = App.fmtHeaderDate(new Date());
   if (location.hash.includes('salle/')) pendingSource = 'deeplink';

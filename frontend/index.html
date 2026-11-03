@@ -13,6 +13,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="app.css?v=20261103b" />
+<!-- Google Identity Services (connexion, uniquement utilisée pour réserver et les favoris) -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="core.js?v=20261103b"></script>
 <script src="salles.js?v=20261103b" defer></script>
 </head>
@@ -92,6 +94,22 @@
   <div class="sheet-foot">
     <button type="button" class="btn-reset" id="filterReset">Réinitialiser</button>
     <button type="button" class="btn btn-primary btn-apply" id="filterApply">Voir les salles</button>
+  </div>
+</dialog>
+
+<!-- ============================== Connexion ============================== -->
+<dialog class="sheet" id="loginSheet" aria-labelledby="loginTitle">
+  <span class="sheet-handle" aria-hidden="true"></span>
+  <div class="sheet-head sheet-head--top">
+    <h2 id="loginTitle">Connecte-toi pour réserver</h2>
+    <button type="button" class="round-btn round-btn--plain" id="loginClose" aria-label="Fermer" style="margin:-6px -10px 0 0">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="sheet-body" style="gap:14px;padding-bottom:calc(30px + env(safe-area-inset-bottom, 0px))">
+    <p class="card-text" id="loginText" style="margin:0"></p>
+    <button type="button" class="btn btn-outline btn-google" id="loginGoogle">Continuer avec Google</button>
+    <span class="card-hint">Avec ton adresse ESIEE</span>
   </div>
 </dialog>
 
