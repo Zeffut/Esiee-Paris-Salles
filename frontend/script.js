@@ -853,6 +853,19 @@ document.addEventListener('DOMContentLoaded', function() {
   hamburger.addEventListener('click', toggleMenu);
   menuOverlay.addEventListener('click', closeMenu);
   if (roomModal) roomModal.addEventListener('click', closeRoomModalOverlay);
+  document.getElementById('roomClose')?.addEventListener('click', closeRoomModal);
+  document.getElementById('filterClose')?.addEventListener('click', closeFilterModal);
+  document.getElementById('roomsGrid')?.addEventListener('keydown', (event) => {
+    if ((event.key === 'Enter' || event.key === ' ') && event.target.classList.contains('card')) {
+      event.preventDefault();
+      event.target.click();
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (filterModal?.classList.contains('open')) closeFilterModal();
+    else if (roomModal?.classList.contains('open')) closeRoomModal();
+  });
 
   // Suivre les changements de préférence système en temps réel (si thème = auto)
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
@@ -2315,6 +2328,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Nouvelle carte (sans event listener individuel - utilise event delegation)
         const card = document.createElement('div');
         card.className = 'card';
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
         card.setAttribute('data-status', status);
         card.setAttribute('data-room', roomNumber);
 
