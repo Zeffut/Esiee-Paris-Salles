@@ -77,6 +77,10 @@ class FavoritesRouteTests(unittest.TestCase):
         res = self.client.delete("/api/favorites/1201", headers=self.headers)
         self.assertEqual(res.get_json()["favorites"], ["0110"])
 
+    def test_unknown_session_is_401_not_csrf_error(self):
+        res = self.client.put("/api/favorites/1201", headers={"Authorization": "Bearer gone", "X-CSRF-Token": "csrf"})
+        self.assertEqual(res.status_code, 401)
+
     def test_rejects_invalid_room_numbers(self):
         for bad in ["12", "12345", "abcd", "12a4"]:
             res = self.client.put(f"/api/favorites/{bad}", headers=self.headers)

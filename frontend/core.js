@@ -51,6 +51,26 @@ App.track = function track(name, props) {
   if (window.posthog) { try { window.posthog.capture(name, props); } catch (e) {} }
 };
 
+// Remplace le contenu d'un conteneur seulement s'il a changé, et rend le focus
+// clavier à l'élément équivalent (même data-room, data-fav, id…) après le rendu.
+App.setHTML = function setHTML(el, html) {
+  if (!el || el.__html === html) return;
+  const active = document.activeElement;
+  let selector = null;
+  if (active && active !== document.body && el.contains(active)) {
+    for (const attr of ['id', 'data-room', 'data-fav', 'data-reserve', 'data-cancel', 'data-quick', 'data-extra', 'data-sugg', 'data-login', 'data-logout', 'data-back']) {
+      if (active.hasAttribute(attr)) {
+        const v = active.getAttribute(attr);
+        selector = attr === 'id' ? `#${CSS.escape(v)}` : `[${attr}="${CSS.escape(v)}"]`;
+        break;
+      }
+    }
+  }
+  el.innerHTML = html;
+  el.__html = html;
+  if (selector) { const again = el.querySelector(selector); if (again) again.focus({ preventScroll: true }); }
+};
+
 let toastTimer = null;
 App.toast = function toast(message) {
   let el = document.getElementById('toast');
@@ -585,9 +605,11 @@ App.auth = (function () {
     if (!token) return;
     try {
       const res = await fetch(`${App.API}/auth/verify`, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
-      const result = await res.json();
-      if (result && result.success) { user = result.user; persist(); emit(); }
-      else expire();
+      let result = null;
+      try { result = await res.json(); } catch (e) {}
+      if (res.ok && result && result.success) { user = result.user; persist(); emit(); }
+      else if (res.status === 401) expire();
+      // autre erreur (serveur indisponible…) : on garde la session locale
     } catch (e) {
       // Réseau indisponible : on garde la session locale
     }
@@ -601,7 +623,8 @@ App.auth = (function () {
     const res = await fetch(`${App.API}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
     let data = null;
     try { data = await res.json(); } catch (e) {}
-    if (res.status === 401) { expire(); const err = new Error('Session expirée'); err.expired = true; throw err; }
+    const csrfLost = res.status === 403 && data && /csrf|session/i.test(String(data.error || ''));
+    if (res.status === 401 || csrfLost) { expire(); const err = new Error('Session expirée'); err.expired = true; throw err; }
     if (!res.ok || !data || data.success === false) {
       const err = new Error((data && data.error) || `Erreur ${res.status}`);
       err.status = res.status;
@@ -616,6 +639,17 @@ App.auth = (function () {
     persist();
     emit();
   }
+
+  // Connexion, déconnexion, réservation ou favori faits dans un autre onglet.
+  window.addEventListener('storage', (e) => {
+    if (e.key !== 'user' && e.key !== 'authToken' && e.key !== null) return;
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem('user') || 'null'); } catch (err) {}
+    user = stored;
+    token = stored ? localStorage.getItem('authToken') : null;
+    csrf = stored ? localStorage.getItem('csrfToken') : null;
+    emit();
+  });
 
   return {
     get user() { return user; },

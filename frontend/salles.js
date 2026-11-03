@@ -119,19 +119,20 @@
       ...extras.map((x, i) => `<button type="button" class="chip chip--active chip--removable" data-extra="${i}" aria-label="Retirer le filtre ${esc(x.label)}">${esc(x.label)}${App.icon.closeSm}</button>`),
       ...QUICK.map((q) => `<button type="button" class="chip" data-quick="${q.key}" aria-pressed="${q.on(filters)}">${esc(q.label)}</button>`)
     ];
-    chipRow.innerHTML = html.join('');
-    $('#openFilters').addEventListener('click', openFilterSheet);
-    $$('[data-quick]', chipRow).forEach((btn) => btn.addEventListener('click', () => {
-      const next = clone(filters);
-      QUICK.find((q) => q.key === btn.dataset.quick).toggle(next);
-      applyFilters(next, 'chip');
-    }));
-    $$('[data-extra]', chipRow).forEach((btn) => btn.addEventListener('click', () => {
-      const next = clone(filters);
-      activeExtras(next)[Number(btn.dataset.extra)].remove(next);
-      applyFilters(next, 'chip');
-    }));
+    App.setHTML(chipRow, html.join(''));
   }
+
+  // Écouteur unique (délégation) : les pastilles sont re-rendues sans se réabonner.
+  chipRow.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.id === 'openFilters') { openFilterSheet(); return; }
+    const next = clone(filters);
+    if (btn.dataset.quick) QUICK.find((q) => q.key === btn.dataset.quick).toggle(next);
+    else if (btn.dataset.extra !== undefined) activeExtras(next)[Number(btn.dataset.extra)].remove(next);
+    else return;
+    applyFilters(next, 'chip');
+  });
 
   function heroHTML(it, now) {
     const lbl = App.stateLabels(it.state, now);
@@ -262,7 +263,7 @@
     if (loadState === 'loading') return;
 
     if (loadState === 'error') {
-      homeContent.innerHTML = errorCardHTML();
+      App.setHTML(homeContent, errorCardHTML());
       return;
     }
 
@@ -273,7 +274,7 @@
     if (!items.length) {
       lastSugg = suggestions(filters, now);
       html += emptyHTML(filters, now);
-      homeContent.innerHTML = html;
+      App.setHTML(homeContent, html);
       return;
     }
 
@@ -282,7 +283,7 @@
       html += `
         <div class="list-head"><h2>Libres maintenant</h2><span>à vérifier sur place</span></div>
         <ul class="stack">${items.map((it) => roomCardHTML(it, now, { frise: false, stale: true })).join('')}</ul>`;
-      homeContent.innerHTML = html;
+      App.setHTML(homeContent, html);
       return;
     }
 
@@ -293,7 +294,7 @@
     html += `
       <div class="list-head"><h2>${title}</h2><span>${items.length} salle${items.length > 1 ? 's' : ''}</span></div>
       <ul class="stack">${rest.map((it) => roomCardHTML(it, now)).join('')}</ul>`;
-    homeContent.innerHTML = html;
+    App.setHTML(homeContent, html);
   }
 
   homeContent.addEventListener('click', (e) => {
@@ -542,6 +543,12 @@
   function renderRoom() {
     const num = currentRoom;
     const room = App.data.rooms[num];
+    if (!room && loadState === 'error') {
+      App.setHTML(viewRoom, `
+        <div class="room-head"><button type="button" class="back-btn" data-back>${App.icon.chevronLeft}${esc(roomBackLabel)}</button></div>
+        ${errorCardHTML()}`);
+      return;
+    }
     if (!room) {
       viewRoom.innerHTML = `
         <div class="room-head"><button type="button" class="back-btn" data-back>${App.icon.chevronLeft}${esc(roomBackLabel)}</button></div>
@@ -567,7 +574,7 @@
         <ol class="slots">${slotsHTML(num, now)}</ol>
       </section>` : sameEpiHTML(num, room, now);
 
-    viewRoom.innerHTML = `
+    App.setHTML(viewRoom, `
       <header class="room-head">
         <button type="button" class="back-btn" data-back>${App.icon.chevronLeft}${esc(roomBackLabel)}</button>
         ${starHTML(num)}
@@ -587,7 +594,7 @@
       </section>
       ${facts}
       ${below}
-      ${reserveCtaHTML(num, free, now)}`;
+      ${reserveCtaHTML(num, free, now)}`);
   }
 
   async function onFavoriteClick(btn) {
@@ -610,6 +617,7 @@
 
   viewRoom.addEventListener('click', (e) => {
     if (e.target.closest('[data-back]')) { goBack(); return; }
+    if (e.target.closest('#retryLoad')) { load(true); return; }
     if (e.target.closest('[data-home]')) { e.preventDefault(); location.hash = ''; return; }
     const fav = e.target.closest('[data-fav]');
     if (fav) { onFavoriteClick(fav); return; }
@@ -637,7 +645,9 @@
       // L'API reçoit une seule date pour le début et la fin : un créneau qui finit
       // à minuit (23:00 – 00:00) serait refusé, on s'arrête donc à 22:00 – 23:00.
       if (!App.sameDay(start, now) || !App.sameDay(end, now)) break;
-      const clash = busy.find((b) => b.start < end && b.end > start);
+      // Pour le créneau en cours, seul ce qui reste compte (un cours fini à 10:30 ne bloque pas 10:45 – 11:00).
+      const from = k === 0 && now > start ? now : start;
+      const clash = busy.find((b) => b.start < end && b.end > from);
       const tooEarly = start - now > 2 * 3600e3;
       out.push({ start, end, current: k === 0, clash, tooEarly, ok: !clash && !tooEarly });
     }
@@ -672,7 +682,12 @@
     const slots = reserveSlots(reserveRoom, now);
     $('#reserveTitle').textContent = `Réserver la salle ${reserveRoom}`;
     $('#reserveSub').textContent = `Aujourd'hui · ${App.roomMeta(room, { places: false })}`;
-    const firstOk = slots.findIndex((s) => s.ok);
+    // Présélection : le premier créneau libre, sauf s'il reste moins de 15 min sur le créneau en cours.
+    let firstOk = slots.findIndex((s) => s.ok);
+    if (firstOk === 0 && slots[0].current && (slots[0].end - now) < 15 * 60e3) {
+      const next = slots.findIndex((s, i) => i > 0 && s.ok);
+      if (next > 0) firstOk = next;
+    }
     $('#reserveSlots').innerHTML = slots.map((s, i) => `
       <label class="slot-choice${s.ok ? '' : ' is-disabled'}">
         <input type="radio" name="slot" value="${slotValue(s)}"${s.ok ? '' : ' disabled'}${i === firstOk ? ' checked' : ''}>
@@ -719,9 +734,17 @@
     e.preventDefault();
     const checked = $('#reserveSlots input:checked');
     if (!checked) return;
-    const [start, end] = checked.value.split('-');
     const btn = $('#reserveSubmit');
     const errBox = $('#reserveError');
+    // L'heure a pu tourner depuis l'ouverture de la feuille : on revérifie le créneau.
+    const stillOk = reserveSlots(reserveRoom).some((s) => s.ok && slotValue(s) === checked.value);
+    if (!stillOk) {
+      renderReserveSheet();
+      errBox.textContent = "Ce créneau n'est plus disponible. Choisis-en un autre.";
+      errBox.hidden = false;
+      return;
+    }
+    const [start, end] = checked.value.split('-');
     btn.setAttribute('aria-busy', 'true');
     errBox.hidden = true;
     try {
@@ -861,7 +884,9 @@
   function route(fromUser) {
     // Une navigation (retour du navigateur, lien) ferme les feuilles ouvertes.
     $$('dialog[open]').forEach((d) => d.close());
-    const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
+    const rawHash = location.hash.replace(/^#/, '');
+    let hash = rawHash;
+    try { hash = decodeURIComponent(rawHash); } catch (e) { /* lien mal encodé : on garde le hash brut */ }
     const m = hash.match(/^salle\/([0-9A-Za-z-]+)$/);
     if (m) {
       const prev = currentView;
@@ -937,6 +962,12 @@
     if (document.hidden || loadState === 'loading') return;
     if (currentView === 'home' && !filterSheet.open) renderHome();
     else if (currentView === 'room') renderRoom();
+    if (reserveSheet.open) {
+      const prev = $('#reserveSlots input:checked')?.value;
+      renderReserveSheet();
+      const again = prev && $(`#reserveSlots input[value="${prev}"]:not(:disabled)`);
+      if (again) { again.checked = true; updateReserveButton(); }
+    }
   }, 30000);
 
   // Données rechargées au retour sur l'onglet si elles ont plus de 10 minutes.
@@ -953,7 +984,12 @@
   App.auth.init();
   renderChips();
   $('#nowLabel').textContent = App.fmtHeaderDate(new Date());
-  if (location.hash.includes('salle/')) pendingSource = 'deeplink';
+  // Provenance d'un lien venant des autres onglets (?src=favorites#salle/1201), puis URL nettoyée.
+  const params = new URLSearchParams(location.search);
+  const src = params.get('src');
+  if (src && /^[a-z_]{1,32}$/.test(src) && location.hash.includes('salle/')) pendingSource = src;
+  else if (location.hash.includes('salle/')) pendingSource = 'deeplink';
+  if (src) { try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {} }
   route(false);
   load(false);
 })();

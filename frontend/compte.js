@@ -62,7 +62,7 @@
           <p class="progress-label">${esc(label)}</p>
         </div>
         <div class="btn-row">
-          <a class="btn btn-soft btn-sm" href="/#salle/${esc(r.room_number)}">Voir la salle</a>
+          <a class="btn btn-soft btn-sm" href="/?src=reservations#salle/${esc(r.room_number)}">Voir la salle</a>
           <button type="button" class="btn btn-danger-outline btn-sm" data-cancel="${esc(r.id)}">${running ? 'Libérer la salle' : 'Annuler'}</button>
         </div>
       </div>`;
@@ -70,7 +70,7 @@
 
   function renderReservations() {
     if (!App.auth.loggedIn) {
-      main.innerHTML = loginCardHTML('Connecte-toi pour voir tes réservations', "Pas besoin de compte pour voir les salles libres. La connexion sert seulement à réserver, avec ton adresse ESIEE.");
+      App.setHTML(main, loginCardHTML('Connecte-toi pour voir tes réservations', "Pas besoin de compte pour voir les salles libres. La connexion sert seulement à réserver, avec ton adresse ESIEE."));
       return;
     }
     const now = new Date();
@@ -84,13 +84,13 @@
     const upcoming = live.filter((r) => new Date(r.start_time) > now);
 
     if (!live.length && !past.length) {
-      main.innerHTML = `
+      App.setHTML(main, `
         <section class="empty">
           <span class="empty-icon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#55627A" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
           <h2>Aucune réservation</h2>
           <p>Réserver bloque une salle libre pour une heure. Choisis une salle, puis « Réserver un créneau ».</p>
         </section>
-        <section class="section"><a class="btn btn-primary" href="/">Voir les salles libres</a></section>`;
+        <section class="section"><a class="btn btn-primary" href="/">Voir les salles libres</a></section>`);
       return;
     }
 
@@ -114,12 +114,12 @@
             ${past.map((r) => `
               <li class="grouped-link" style="cursor:default">
                 <span class="room-card-col"><span class="room-num room-num--xs">Salle ${esc(r.room_number)}</span><span class="room-meta">${esc(shortDate(new Date(r.start_time)))} · ${esc(range(r))}</span></span>
-                <a class="text-btn" href="/#salle/${esc(r.room_number)}" style="font-weight:800;font-size:14px;padding:10px 0">Revoir</a>
+                <a class="text-btn" href="/?src=past_reservations#salle/${esc(r.room_number)}" style="font-weight:800;font-size:14px;padding:10px 0">Revoir</a>
               </li>`).join('')}
           </ul>
         </section>`;
     }
-    main.innerHTML = html;
+    App.setHTML(main, html);
   }
 
   async function cancelReservation(id) {
@@ -184,7 +184,7 @@
           : `<span class="room-until room-until--busy" style="font-size:14px">${esc(lbl.until.charAt(0).toUpperCase() + lbl.until.slice(1))}</span>`;
       }
       return `
-        <li><a class="grouped-link" href="/#salle/${esc(num)}">
+        <li><a class="grouped-link" href="/?src=favorites#salle/${esc(num)}">
           <span class="room-card-col"><span class="room-num room-num--xs">Salle ${esc(num)}</span><span class="room-meta">${esc(App.roomMeta(room, { places: false }))}</span></span>
           ${right}
         </a></li>`;
@@ -193,14 +193,14 @@
 
   function renderProfile() {
     if (!App.auth.loggedIn) {
-      main.innerHTML = loginCardHTML('Connecte-toi pour réserver', 'Pas besoin de compte pour voir les salles libres. La connexion sert à réserver et à retrouver tes favoris.') + aboutHTML;
+      App.setHTML(main, loginCardHTML('Connecte-toi pour réserver', 'Pas besoin de compte pour voir les salles libres. La connexion sert à réserver et à retrouver tes favoris.') + aboutHTML);
       return;
     }
     const u = App.auth.user;
     const avatar = u.picture
       ? `<span class="avatar"><img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer"></span>`
       : `<span class="avatar" aria-hidden="true">${esc(initials(u.name))}</span>`;
-    main.innerHTML = `
+    App.setHTML(main, `
       <section class="section section--tight">
         <div class="card identity">
           ${avatar}
@@ -214,9 +214,9 @@
       <section class="section">
         <button type="button" class="btn btn-danger-soft" data-logout>Se déconnecter</button>
       </section>
-      ${aboutHTML}`;
+      ${aboutHTML}`);
     const img = main.querySelector('.avatar img');
-    if (img) img.addEventListener('error', () => { img.parentElement.textContent = initials(u.name); });
+    if (img && !img.__bound) img.__bound = true, img.addEventListener('error', () => { img.parentElement.textContent = initials(u.name); });
   }
 
   // ---------------------------------------------------------------------------

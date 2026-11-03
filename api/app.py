@@ -854,6 +854,14 @@ def csrf_protected(f):
 
         session_token = auth_header[7:]  # Retirer "Bearer "
 
+        # Session inconnue ou expirée : 401 (le client sait alors qu'il doit se reconnecter),
+        # plutôt qu'un 403 « Token CSRF invalide » trompeur
+        if not user_manager.validate_session(session_token):
+            return jsonify({
+                'success': False,
+                'error': 'Session invalide ou expirée'
+            }), 401
+
         # Récupérer le token CSRF depuis le header
         csrf_token = request.headers.get('X-CSRF-Token')
         if not csrf_token:
