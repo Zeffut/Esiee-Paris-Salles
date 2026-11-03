@@ -4,6 +4,7 @@ Extracteur iCal final optimisé pour ESIEE
 Utilise les paramètres de date découverts pour extraire les données de n'importe quelle semaine
 """
 
+import os
 import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -13,6 +14,21 @@ import re
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Projet ADE de l'année universitaire en cours. Valeur de départ réglable par la
+# variable d'environnement ADE_PROJECT_ID (2 = année 2026-2027) ; corrigée
+# automatiquement si le projet ne renvoie plus de cours (voir _discover_project).
+ADE_MAX_PROJECT_ID = 12
+_ade_project = {
+    'id': int(os.environ.get('ADE_PROJECT_ID', '2') or 2),
+    'last_scan': None,
+}
+
+
+def _count_esiee_events(content: str) -> int:
+    """Nombre de cours dans des salles ESIEE (lieux « PER - … »)."""
+    return content.count('LOCATION:PER - ')
+
 
 class ESIEEiCalExtractor:
     """Extracteur de base pour iCal ESIEE"""
@@ -226,19 +242,70 @@ class ESIEEiCalFinalExtractor(ESIEEiCalExtractor):
 
         return self._extract_for_date(start_dt, nb_weeks)
 
+    def _build_url(self, project_id: int, date_str: str, nb_weeks: int) -> str:
+        return (f"{self.base_ical_url}?"
+                f"resources=410&projectId={project_id}&calType=ical&"
+                f"nbWeeks={nb_weeks}&displayConfigId=8&"
+                f"firstDate={date_str}")
+
+    def _fetch(self, url: str) -> Optional[str]:
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            return response.text
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la récupération iCal: {e}")
+            return None
+
     def _extract_for_date(self, start_date: datetime, nb_weeks: int) -> bool:
-        """Extrait les données pour une date et durée spécifiques"""
-        # Utiliser firstDate qui donne le plus de résultats
+        """Extrait les données pour une date et durée spécifiques.
+
+        Le projet ADE change à chaque année universitaire (projectId=1 en 2025-2026,
+        2 en 2026-2027…). Si le projet courant ne renvoie aucun cours ESIEE, on
+        cherche automatiquement le projet qui en renvoie, pour ne plus afficher
+        « tout libre » pendant des mois après la rentrée.
+        """
         date_str = start_date.strftime('%Y-%m-%d')
-
-        url = (f"{self.base_ical_url}?"
-               f"resources=410&projectId=1&calType=ical&"
-               f"nbWeeks={nb_weeks}&displayConfigId=8&"
-               f"firstDate={date_str}")
-
+        project_id = _ade_project['id']
+        url = self._build_url(project_id, date_str, nb_weeks)
         logger.info(f"🔗 URL: {url}")
 
-        return self.extract_from_ical_url(url)
+        content = self._fetch(url)
+        if content is None:
+            return False
+
+        if _count_esiee_events(content) == 0:
+            better = self._discover_project(date_str, nb_weeks, project_id)
+            if better:
+                project_id, content = better
+
+        return self._parse_ical_content(content)
+
+    def _discover_project(self, date_str: str, nb_weeks: int, current: int):
+        """Teste les autres projets ADE (au plus une fois toutes les 6 h, car une
+        semaine de vacances est légitimement vide). Retourne (id, contenu) ou None."""
+        now = datetime.now()
+        last = _ade_project['last_scan']
+        if last and now - last < timedelta(hours=6):
+            return None
+        _ade_project['last_scan'] = now
+
+        best = None
+        for candidate in range(1, ADE_MAX_PROJECT_ID + 1):
+            if candidate == current:
+                continue
+            content = self._fetch(self._build_url(candidate, date_str, nb_weeks))
+            count = _count_esiee_events(content or '')
+            if count and (best is None or count > best[2]):
+                best = (candidate, content, count)
+
+        if not best:
+            logger.warning(f"⚠️ Aucun projet ADE ne renvoie de cours ESIEE pour {date_str} (vacances ?)")
+            return None
+
+        logger.warning(f"🔁 Projet ADE {current} vide : bascule sur le projet {best[0]} ({best[2]} cours ESIEE)")
+        _ade_project['id'] = best[0]
+        return best[0], best[1]
 
     def _get_week_name(self, week_offset: int) -> str:
         """Retourne le nom de la semaine selon l'offset"""
