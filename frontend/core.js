@@ -52,35 +52,31 @@ App.fetch = function fetchWithTimeout(url, options = {}, ms = 15000) {
   return fetch(url, Object.assign({}, options, { signal: ctrl.signal })).finally(() => clearTimeout(timer));
 };
 
-// Suivi : Rybbit + PostHog, silencieux s'ils ne sont pas chargés.
+// Suivi : PostHog uniquement, et seulement si la personne a accepté.
 // Les noms et propriétés des événements existants sont conservés pour comparer avant / après.
-// Événements émis avant le chargement de Rybbit : mis en attente puis envoyés,
-// pour ne pas perdre les premières actions (ex. fiche ouverte par lien direct).
-const rybbitQueue = [];
-App.flushRybbit = function flushRybbit() {
-  if (!window.rybbit) return;
-  while (rybbitQueue.length) { const [n, p] = rybbitQueue.shift(); try { window.rybbit.event(n, p); } catch (e) {} }
+// Événements émis avant le chargement de PostHog (accord déjà donné) : mis en attente
+// puis envoyés, pour ne pas perdre les premières actions (ex. fiche ouverte par lien direct).
+const posthogQueue = [];
+App.flushAnalytics = function flushAnalytics() {
+  if (!window.__posthogStarted || !window.posthog) return;
+  while (posthogQueue.length) { const [n, p] = posthogQueue.shift(); try { window.posthog.capture(n, p); } catch (e) {} }
 };
 
 App.track = function track(name, props) {
-  if (window.rybbit) { try { window.rybbit.event(name, props); } catch (e) {} }
-  else if (rybbitQueue.length < 50 && !(App.consent && App.consent.audienceOptOut)) rybbitQueue.push([name, props]);
-  // PostHog n'existe que si la personne a accepté la mesure détaillée.
   if (window.__posthogStarted && window.posthog) { try { window.posthog.capture(name, props); } catch (e) {} }
+  else if (App.consent && App.consent.state === 'granted' && posthogQueue.length < 50) posthogQueue.push([name, props]);
 };
 
 // -----------------------------------------------------------------------------
 // Consentement (RGPD / recommandations CNIL)
-//  - Rybbit : mesure d'audience sans cookie, anonymisée, exemptée de consentement ;
-//    la personne peut s'y opposer (Profil ou page Confidentialité).
-//  - PostHog (parcours, cartes de chaleur, enregistrements de session) : uniquement
-//    après « Accepter ». « Refuser » est aussi simple qu'« Accepter ».
-//  - Le choix est conservé 6 mois, puis redemandé.
+//  - Aucune mesure d'audience sans accord : PostHog (parcours, cartes de chaleur,
+//    enregistrements de session) ne démarre qu'après « Accepter ».
+//  - « Refuser » est aussi simple qu'« Accepter ». Choix conservé 6 mois.
 // -----------------------------------------------------------------------------
 
 App.consent = (function () {
   const KEY = 'consent';
-  const OPTOUT_KEY = 'audienceOptOut';
+  const LEGACY_KEYS = ['audienceOptOut']; // ancien réglage Rybbit, effacé
   const MAX_AGE = 182 * 24 * 3600e3; // 6 mois
   const listeners = new Set();
 
@@ -122,6 +118,7 @@ App.consent = (function () {
     s.onload = () => {
       if (typeof window.startPostHog === 'function') window.startPostHog();
       if (App.auth && App.auth.loggedIn) App.auth.identifyAnalytics();
+      App.flushAnalytics();
     };
   }
 
@@ -132,37 +129,22 @@ App.consent = (function () {
     purgePostHog();
   }
 
-  function startRybbit() {
-    if (App.storage.get(OPTOUT_KEY) === true || document.querySelector('script[data-site-id]')) return;
-    const s = document.createElement('script');
-    s.src = '/rb/script.js';
-    s.defer = true;
-    s.setAttribute('data-site-id', 'a969e55cd4ad');
-    s.onload = () => App.flushRybbit();
-    document.head.appendChild(s);
-  }
-
   function apply() {
+    LEGACY_KEYS.forEach((k) => App.storage.remove(k));
     const c = read();
     if (c && c.analytics === 'granted') startPostHog();
     else purgePostHog();
-    startRybbit();
   }
 
   function set(analytics) {
     const before = read();
     App.storage.set(KEY, { analytics, at: new Date().toISOString(), v: 1 });
-    // Choix comptabilisé de façon anonyme (Rybbit), pour connaître le taux d'acceptation.
-    if (!before || before.analytics !== analytics) App.track('consent_choice', { choice: analytics });
-    if (analytics === 'granted') startPostHog(); else stopPostHog();
+    if (analytics === 'granted') {
+      startPostHog();
+      if (!before || before.analytics !== 'granted') App.track('consent_choice', { choice: 'granted' });
+    } else stopPostHog();
     hideBanner();
     listeners.forEach((cb) => cb(read()));
-  }
-
-  function setAudienceOptOut(optOut) {
-    App.storage.set(OPTOUT_KEY, !!optOut);
-    if (optOut) location.reload(); // décharge Rybbit, déjà chargé sur la page
-    else startRybbit();
   }
 
   // ---- Bandeau ----
@@ -181,8 +163,8 @@ App.consent = (function () {
     el.setAttribute('aria-label', 'Choix de mesure d\'audience');
     el.innerHTML = `
       <p class="consent-text">
-        On compte les visites de façon anonyme, sans cookie. Avec ton accord, on utilise aussi
-        <strong>PostHog</strong> pour comprendre comment le site est utilisé (parcours, enregistrements de session anonymisés).
+        Avec ton accord, on utilise <strong>PostHog</strong> pour comprendre comment le site est utilisé
+        (pages vues, parcours, enregistrements de session anonymisés). Sans accord, rien n'est mesuré.
         <a href="/confidentialite">En savoir plus</a>
       </p>
       <div class="btn-row">
@@ -210,7 +192,6 @@ App.consent = (function () {
     if (!container) return;
     const st = read();
     const ph = st ? st.analytics : null;
-    const opt = App.storage.get(OPTOUT_KEY) === true;
     const phText = ph === 'granted' ? 'Activée' : ph === 'denied' ? 'Refusée' : 'Pas encore choisie';
     container.innerHTML = `
       <div class="pref">
@@ -219,19 +200,11 @@ App.consent = (function () {
           <span>Parcours, cartes de chaleur, enregistrements de session anonymisés. ${phText}.</span>
         </div>
         <button type="button" class="btn btn-sm ${ph === 'granted' ? 'btn-soft' : 'btn-primary'}" data-pref="posthog" aria-pressed="${ph === 'granted'}">${ph === 'granted' ? 'Retirer mon accord' : 'Accepter'}</button>
-      </div>
-      <div class="pref">
-        <div class="pref-text">
-          <strong>Mesure anonyme des visites (Rybbit)</strong>
-          <span>Sans cookie ni identification. ${opt ? 'Vous vous y êtes opposé.' : 'Active.'}</span>
-        </div>
-        <button type="button" class="btn btn-sm btn-soft" data-pref="rybbit" aria-pressed="${!opt}">${opt ? 'La réactiver' : "M'y opposer"}</button>
       </div>`;
     container.onclick = (e) => {
       const b = e.target.closest('[data-pref]');
       if (!b) return;
-      if (b.dataset.pref === 'posthog') set(read() && read().analytics === 'granted' ? 'denied' : 'granted');
-      else { setAudienceOptOut(!(App.storage.get(OPTOUT_KEY) === true)); }
+      set(read() && read().analytics === 'granted' ? 'denied' : 'granted');
       renderControls(container);
       App.toast('Choix enregistré');
     };
@@ -240,8 +213,7 @@ App.consent = (function () {
   return {
     renderControls,
     get state() { const c = read(); return c ? c.analytics : null; },
-    get audienceOptOut() { return App.storage.get(OPTOUT_KEY) === true; },
-    set, setAudienceOptOut,
+    set,
     onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
     showBanner
   };
@@ -825,7 +797,6 @@ App.auth = (function () {
       } catch (e) {}
     }
     App.track('logout');
-    if (window.rybbit && window.rybbit.clearUserId) { try { window.rybbit.clearUserId(); } catch (e) {} }
     if (window.__posthogStarted && window.posthog && window.posthog.reset) { try { window.posthog.reset(); } catch (e) {} }
     clearLocal();
     if (googleReady && window.google && google.accounts && google.accounts.id) { try { google.accounts.id.disableAutoSelect(); } catch (e) {} }

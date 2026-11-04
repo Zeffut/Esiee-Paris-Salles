@@ -10,18 +10,6 @@
   ],
   "rewrites": [
     {
-      "source": "/rb/script.js",
-      "destination": "https://tracking.zeffut.fr/api/script.js"
-    },
-    {
-      "source": "/rb/track",
-      "destination": "https://tracking.zeffut.fr/api/track"
-    },
-    {
-      "source": "/rb/:path*",
-      "destination": "https://tracking.zeffut.fr/api/:path*"
-    },
-    {
       "source": "/ingest/static/:path*",
       "destination": "https://eu-assets.i.posthog.com/static/:path*"
     },
