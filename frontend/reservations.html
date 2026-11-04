@@ -8,15 +8,11 @@
 <meta name="description" content="Tes réservations de salles à l'ESIEE Paris.">
 <meta name="theme-color" content="#F2F5F9">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 
-<link rel="stylesheet" href="app.css?v=20261103e" />
-<!-- Google Identity Services (connexion) -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="core.js?v=20261103e"></script>
-<script src="compte.js?v=20261103e" defer></script>
+<link rel="stylesheet" href="app.css?v=20261104a" />
+<script src="core.js?v=20261104a"></script>
+<script src="compte.js?v=20261104a" defer></script>
 </head>
 <body data-page="reservations">
 <div class="page">
@@ -37,9 +33,6 @@
   </div>
 </nav>
 
-<!-- Rybbit Analytics (proxifié pour contourner les adblockers) -->
-<script src="/rb/script.js" data-site-id="a969e55cd4ad" defer></script>
-<!-- PostHog Analytics (proxifié via /ingest) — externalisé pour respecter la CSP -->
-<script src="/posthog.js" defer></script>
+<!-- Mesure d'audience : chargée par core.js selon le consentement (voir App.consent) -->
 </body>
 </html>

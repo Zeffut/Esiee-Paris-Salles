@@ -44,12 +44,208 @@ App.storage = {
   remove(key) { try { localStorage.removeItem(key); } catch (e) {} }
 };
 
+// fetch avec délai d'expiration : sur un réseau mobile défaillant, une requête
+// sans réponse ne doit pas laisser l'écran bloqué sur « Chargement ».
+App.fetch = function fetchWithTimeout(url, options = {}, ms = 15000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, Object.assign({}, options, { signal: ctrl.signal })).finally(() => clearTimeout(timer));
+};
+
 // Suivi : Rybbit + PostHog, silencieux s'ils ne sont pas chargés.
 // Les noms et propriétés des événements existants sont conservés pour comparer avant / après.
+// Événements émis avant le chargement de Rybbit : mis en attente puis envoyés,
+// pour ne pas perdre les premières actions (ex. fiche ouverte par lien direct).
+const rybbitQueue = [];
+App.flushRybbit = function flushRybbit() {
+  if (!window.rybbit) return;
+  while (rybbitQueue.length) { const [n, p] = rybbitQueue.shift(); try { window.rybbit.event(n, p); } catch (e) {} }
+};
+
 App.track = function track(name, props) {
   if (window.rybbit) { try { window.rybbit.event(name, props); } catch (e) {} }
-  if (window.posthog) { try { window.posthog.capture(name, props); } catch (e) {} }
+  else if (rybbitQueue.length < 50 && !(App.consent && App.consent.audienceOptOut)) rybbitQueue.push([name, props]);
+  // PostHog n'existe que si la personne a accepté la mesure détaillée.
+  if (window.__posthogStarted && window.posthog) { try { window.posthog.capture(name, props); } catch (e) {} }
 };
+
+// -----------------------------------------------------------------------------
+// Consentement (RGPD / recommandations CNIL)
+//  - Rybbit : mesure d'audience sans cookie, anonymisée, exemptée de consentement ;
+//    la personne peut s'y opposer (Profil ou page Confidentialité).
+//  - PostHog (parcours, cartes de chaleur, enregistrements de session) : uniquement
+//    après « Accepter ». « Refuser » est aussi simple qu'« Accepter ».
+//  - Le choix est conservé 6 mois, puis redemandé.
+// -----------------------------------------------------------------------------
+
+App.consent = (function () {
+  const KEY = 'consent';
+  const OPTOUT_KEY = 'audienceOptOut';
+  const MAX_AGE = 182 * 24 * 3600e3; // 6 mois
+  const listeners = new Set();
+
+  function read() {
+    const c = App.storage.get(KEY);
+    if (!c || !c.at || (c.analytics !== 'granted' && c.analytics !== 'denied')) return null;
+    if (Date.now() - new Date(c.at).getTime() > MAX_AGE) return null;
+    return c;
+  }
+
+  // Efface tout ce que PostHog a pu déposer (cookies ph_*, clés ph_* du stockage local).
+  function purgePostHog() {
+    try {
+      Object.keys(localStorage).filter((k) => /^(ph_|__ph)/.test(k)).forEach((k) => localStorage.removeItem(k));
+      Object.keys(sessionStorage).filter((k) => /^(ph_|__ph)/.test(k)).forEach((k) => sessionStorage.removeItem(k));
+    } catch (e) {}
+    const host = location.hostname;
+    const domains = ['', host, '.' + host, '.' + host.split('.').slice(-2).join('.')];
+    document.cookie.split(';').map((c) => c.split('=')[0].trim()).filter((n) => /^(ph_|__ph)/.test(n)).forEach((name) => {
+      domains.forEach((d) => {
+        document.cookie = `${name}=; Max-Age=0; path=/${d ? `; domain=${d}` : ''}`;
+      });
+    });
+  }
+
+  function loadScript(src) {
+    const s = document.createElement('script');
+    s.src = src;
+    s.defer = true;
+    document.head.appendChild(s);
+    return s;
+  }
+
+  let posthogRequested = false;
+  function startPostHog() {
+    if (posthogRequested) return;
+    posthogRequested = true;
+    const s = loadScript('/posthog.js');
+    s.onload = () => {
+      if (typeof window.startPostHog === 'function') window.startPostHog();
+      if (App.auth && App.auth.loggedIn) App.auth.identifyAnalytics();
+    };
+  }
+
+  function stopPostHog() {
+    if (window.__posthogStarted && window.posthog) {
+      try { window.posthog.opt_out_capturing(); window.posthog.reset(); } catch (e) {}
+    }
+    purgePostHog();
+  }
+
+  function startRybbit() {
+    if (App.storage.get(OPTOUT_KEY) === true || document.querySelector('script[data-site-id]')) return;
+    const s = document.createElement('script');
+    s.src = '/rb/script.js';
+    s.defer = true;
+    s.setAttribute('data-site-id', 'a969e55cd4ad');
+    s.onload = () => App.flushRybbit();
+    document.head.appendChild(s);
+  }
+
+  function apply() {
+    const c = read();
+    if (c && c.analytics === 'granted') startPostHog();
+    else purgePostHog();
+    startRybbit();
+  }
+
+  function set(analytics) {
+    const before = read();
+    App.storage.set(KEY, { analytics, at: new Date().toISOString(), v: 1 });
+    // Choix comptabilisé de façon anonyme (Rybbit), pour connaître le taux d'acceptation.
+    if (!before || before.analytics !== analytics) App.track('consent_choice', { choice: analytics });
+    if (analytics === 'granted') startPostHog(); else stopPostHog();
+    hideBanner();
+    listeners.forEach((cb) => cb(read()));
+  }
+
+  function setAudienceOptOut(optOut) {
+    App.storage.set(OPTOUT_KEY, !!optOut);
+    if (optOut) location.reload(); // décharge Rybbit, déjà chargé sur la page
+    else startRybbit();
+  }
+
+  // ---- Bandeau ----
+  function hideBanner() {
+    const b = document.getElementById('consentBanner');
+    if (b) b.remove();
+    document.body.classList.remove('has-consent-banner');
+  }
+
+  function showBanner() {
+    if (document.getElementById('consentBanner') || document.body.dataset.page === 'confidentialite') return;
+    const el = document.createElement('section');
+    el.id = 'consentBanner';
+    el.className = 'consent';
+    el.setAttribute('role', 'region');
+    el.setAttribute('aria-label', 'Choix de mesure d\'audience');
+    el.innerHTML = `
+      <p class="consent-text">
+        On compte les visites de façon anonyme, sans cookie. Avec ton accord, on utilise aussi
+        <strong>PostHog</strong> pour comprendre comment le site est utilisé (parcours, enregistrements de session anonymisés).
+        <a href="/confidentialite">En savoir plus</a>
+      </p>
+      <div class="btn-row">
+        <button type="button" class="btn btn-soft btn-md" data-consent="denied">Refuser</button>
+        <button type="button" class="btn btn-primary btn-md" data-consent="granted">Accepter</button>
+      </div>`;
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-consent]');
+      if (b) set(b.dataset.consent);
+    });
+    document.body.appendChild(el);
+    document.body.classList.add('has-consent-banner');
+  }
+
+  function init() {
+    apply();
+    if (!read()) showBanner();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+  // Réglages affichés dans Profil et sur la page Confidentialité.
+  function renderControls(container) {
+    if (!container) return;
+    const st = read();
+    const ph = st ? st.analytics : null;
+    const opt = App.storage.get(OPTOUT_KEY) === true;
+    const phText = ph === 'granted' ? 'Activée' : ph === 'denied' ? 'Refusée' : 'Pas encore choisie';
+    container.innerHTML = `
+      <div class="pref">
+        <div class="pref-text">
+          <strong>Analyse détaillée (PostHog)</strong>
+          <span>Parcours, cartes de chaleur, enregistrements de session anonymisés. ${phText}.</span>
+        </div>
+        <button type="button" class="btn btn-sm ${ph === 'granted' ? 'btn-soft' : 'btn-primary'}" data-pref="posthog" aria-pressed="${ph === 'granted'}">${ph === 'granted' ? 'Retirer mon accord' : 'Accepter'}</button>
+      </div>
+      <div class="pref">
+        <div class="pref-text">
+          <strong>Mesure anonyme des visites (Rybbit)</strong>
+          <span>Sans cookie ni identification. ${opt ? 'Vous vous y êtes opposé.' : 'Active.'}</span>
+        </div>
+        <button type="button" class="btn btn-sm btn-soft" data-pref="rybbit" aria-pressed="${!opt}">${opt ? 'La réactiver' : "M'y opposer"}</button>
+      </div>`;
+    container.onclick = (e) => {
+      const b = e.target.closest('[data-pref]');
+      if (!b) return;
+      if (b.dataset.pref === 'posthog') set(read() && read().analytics === 'granted' ? 'denied' : 'granted');
+      else { setAudienceOptOut(!(App.storage.get(OPTOUT_KEY) === true)); }
+      renderControls(container);
+      App.toast('Choix enregistré');
+    };
+  }
+
+  return {
+    renderControls,
+    get state() { const c = read(); return c ? c.analytics : null; },
+    get audienceOptOut() { return App.storage.get(OPTOUT_KEY) === true; },
+    set, setAudienceOptOut,
+    onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
+    showBanner
+  };
+})();
 
 // Remplace le contenu d'un conteneur seulement s'il a changé, et rend le focus
 // clavier à l'élément équivalent (même data-room, data-fav, id…) après le rendu.
@@ -91,7 +287,7 @@ App.checkForUpdate = async function checkForUpdate(force) {
   if (!force && Date.now() - lastUpdateCheck < 2 * 60e3) return;
   lastUpdateCheck = Date.now();
   try {
-    const res = await fetch(`${location.pathname}?_=${Date.now()}`, { cache: 'no-store', credentials: 'same-origin' });
+    const res = await App.fetch(`${location.pathname}?_=${Date.now()}`, { cache: 'no-store', credentials: 'same-origin' });
     if (!res.ok) return;
     const m = (await res.text()).match(/core\.js\?v=([\w.-]+)/);
     if (!m || m[1] === App.BUILD) return;
@@ -286,8 +482,8 @@ function loadSnapshot() {
 App.loadRooms = async function loadRooms() {
   try {
     const [roomsRes, resaRes] = await Promise.all([
-      fetch(`${App.API}/rooms`),
-      fetch(`${App.API}/reservations/active`).catch(() => null)
+      App.fetch(`${App.API}/rooms`, {}, 20000),
+      App.fetch(`${App.API}/reservations/active`).catch(() => null)
     ]);
     if (!roomsRes.ok) throw new Error(`HTTP ${roomsRes.status}`);
     const data = await roomsRes.json();
@@ -314,7 +510,7 @@ App.loadRooms = async function loadRooms() {
 
 App.refreshActiveReservations = async function refreshActiveReservations() {
   try {
-    const res = await fetch(`${App.API}/reservations/active`);
+    const res = await App.fetch(`${App.API}/reservations/active`);
     if (!res.ok) return;
     const data = await res.json();
     if (data && data.success && Array.isArray(data.reservations)) App.data.reservations = data.reservations;
@@ -478,12 +674,14 @@ App.auth = (function () {
     } catch (e) {}
   }
 
+  // RGPD : aucun nom ni e-mail n'est envoyé aux outils de mesure. Seul PostHog,
+  // et seulement après consentement, reçoit un identifiant pseudonyme (user_id,
+  // empreinte de l'e-mail calculée par l'API) et le domaine de l'adresse.
   function identify() {
-    if (!user) return;
-    if (window.rybbit) { try { window.rybbit.identify(user.email || user.id, { name: user.name, email: user.email }); } catch (e) {} }
-    if (window.posthog) {
-      try { window.posthog.identify(user.email || user.id, { name: user.name, email: user.email, email_domain: emailDomain(user) }); } catch (e) {}
-    }
+    if (!user || !window.__posthogStarted || !window.posthog) return;
+    const pseudoId = user.user_id;
+    if (!pseudoId) return;
+    try { window.posthog.identify(pseudoId, { email_domain: emailDomain(user) }); } catch (e) {}
   }
 
   function finishLogin(ok) {
@@ -505,7 +703,7 @@ App.auth = (function () {
 
   async function backendLogin(body) {
     try {
-      const res = await fetch(`${App.API}/auth/login`, {
+      const res = await App.fetch(`${App.API}/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
       });
       const result = await res.json();
@@ -554,7 +752,7 @@ App.auth = (function () {
       callback: async (resp) => {
         if (!resp || !resp.access_token) { finishLogin(false); return; }
         try {
-          const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: `Bearer ${resp.access_token}` } });
+          const r = await App.fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: `Bearer ${resp.access_token}` } });
           if (!r.ok) throw new Error('profil');
           const info = await r.json();
           const pseudo = btoa(JSON.stringify({ sub: info.id, name: info.name, email: info.email, picture: info.picture }));
@@ -572,28 +770,41 @@ App.auth = (function () {
     client.requestAccessToken();
   }
 
-  function initGoogle() {
-    if (window.google && google.accounts && google.accounts.id) {
-      try {
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleCredential,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-          use_fedcm_for_prompt: true
-        });
-        googleReady = true;
-      } catch (e) { console.error('Initialisation Google :', e); }
-    } else {
-      setTimeout(initGoogle, 800);
-    }
+  // RGPD : le script de Google n'est chargé qu'au moment où la personne veut se
+  // connecter (et non sur chaque page), pour ne pas transmettre à Google l'adresse
+  // IP de tous les visiteurs.
+  let googleLoading = null;
+  function loadGoogle() {
+    if (googleReady) return Promise.resolve(true);
+    if (googleLoading) return googleLoading;
+    googleLoading = new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.onload = () => {
+        try {
+          google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleCredential,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            use_fedcm_for_prompt: true
+          });
+          googleReady = true;
+        } catch (e) { console.error('Initialisation Google :', e); }
+        resolve(googleReady);
+      };
+      script.onerror = () => { googleLoading = null; resolve(false); };
+      document.head.appendChild(script);
+    });
+    return googleLoading;
   }
 
   // Ouvre la connexion Google. Résout true si l'utilisateur est connecté à la fin.
   function login() {
-    return new Promise((resolve) => {
-      if (!googleReady || !window.google) {
-        App.toast('La connexion Google n\'est pas encore prête. Réessaie dans un instant.');
+    return loadGoogle().then((ready) => new Promise((resolve) => {
+      if (!ready || !window.google) {
+        App.toast('Connexion Google indisponible. Vérifie ta connexion internet et réessaie.');
         resolve(false);
         return;
       }
@@ -602,7 +813,7 @@ App.auth = (function () {
         if (n.isNotDisplayed() || n.isSkippedMoment()) oauthFallback();
         else if (n.isDismissedMoment() && n.getDismissedReason() !== 'credential_returned') finishLogin(false);
       });
-    });
+    }));
   }
 
   async function logout() {
@@ -610,14 +821,14 @@ App.auth = (function () {
       try {
         const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
         if (csrf) headers['X-CSRF-Token'] = csrf;
-        await fetch(`${App.API}/auth/logout`, { method: 'POST', headers });
+        await App.fetch(`${App.API}/auth/logout`, { method: 'POST', headers }, 5000);
       } catch (e) {}
     }
     App.track('logout');
     if (window.rybbit && window.rybbit.clearUserId) { try { window.rybbit.clearUserId(); } catch (e) {} }
-    if (window.posthog && window.posthog.reset) { try { window.posthog.reset(); } catch (e) {} }
+    if (window.__posthogStarted && window.posthog && window.posthog.reset) { try { window.posthog.reset(); } catch (e) {} }
     clearLocal();
-    if (window.google && google.accounts && google.accounts.id) { try { google.accounts.id.disableAutoSelect(); } catch (e) {} }
+    if (googleReady && window.google && google.accounts && google.accounts.id) { try { google.accounts.id.disableAutoSelect(); } catch (e) {} }
     emit();
   }
 
@@ -640,7 +851,7 @@ App.auth = (function () {
     emit();
     if (!token) return;
     try {
-      const res = await fetch(`${App.API}/auth/verify`, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
+      const res = await App.fetch(`${App.API}/auth/verify`, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
       let result = null;
       try { result = await res.json(); } catch (e) {}
       if (res.ok && result && result.success) { user = result.user; persist(); emit(); }
@@ -656,7 +867,7 @@ App.auth = (function () {
     if (!token) { const err = new Error('Session absente'); err.expired = true; throw err; }
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
     if (csrf) headers['X-CSRF-Token'] = csrf;
-    const res = await fetch(`${App.API}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    const res = await App.fetch(`${App.API}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
     let data = null;
     try { data = await res.json(); } catch (e) {}
     const csrfLost = res.status === 403 && data && /csrf|session/i.test(String(data.error || ''));
@@ -692,7 +903,15 @@ App.auth = (function () {
     get loggedIn() { return !!user; },
     get hasServerSession() { return !!(user && token); },
     onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
-    init() { initGoogle(); return restore(); },
+    init() { return restore(); },
+    preloadGoogle() { return loadGoogle(); },
+    identifyAnalytics() { identify(); },
+    // Après suppression du compte : on efface la session locale et l'identité PostHog.
+    forget() {
+      if (window.__posthogStarted && window.posthog && window.posthog.reset) { try { window.posthog.reset(); } catch (e) {} }
+      clearLocal();
+      emit();
+    },
     refresh() { return restore(); },
     login, logout, request, updateUser
   };

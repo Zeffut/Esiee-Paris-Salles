@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Confidentialité et mentions légales — Salles ESIEE</title>
+
+<meta name="description" content="Quelles données le site ESIEE Salles traite, pourquoi, combien de temps, et comment exercer vos droits.">
+<meta name="theme-color" content="#F2F5F9">
+
+<link rel="preload" href="fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="app.css?v=20261104a" />
+<script src="core.js?v=20261104a"></script>
+<script src="confidentialite.js?v=20261104a" defer></script>
+</head>
+<body data-page="confidentialite">
+<div class="page">
+  <header class="page-head">
+    <a class="back-btn" href="/profile" style="align-self:flex-start;margin:-4px 0 12px -4px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Profil</a>
+    <h1 class="page-title">Confidentialité</h1>
+    <p class="page-date">Mise à jour le 4 novembre 2026</p>
+  </header>
+
+  <main class="legal">
+    <section class="card">
+      <h2>En bref</h2>
+      <ul>
+        <li>Consulter les salles ne demande <strong>aucun compte</strong> et ne dépose <strong>aucun cookie</strong>.</li>
+        <li>Les visites sont comptées de façon <strong>anonyme</strong> (Rybbit, hébergé par l'éditeur). Vous pouvez vous y opposer.</li>
+        <li>L'outil d'analyse détaillée <strong>PostHog</strong> ne fonctionne qu'avec votre <strong>accord</strong>.</li>
+        <li>Le compte Google ne sert qu'à <strong>réserver</strong> et à garder des <strong>favoris</strong>. Vous pouvez télécharger ou supprimer vos données à tout moment depuis Profil.</li>
+      </ul>
+    </section>
+
+    <section id="choix" class="card">
+      <h2>Vos choix de mesure d'audience</h2>
+      <div id="consentControls" class="legal-controls">
+        <p class="card-text" style="margin:0">Chargement…</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Responsable du traitement</h2>
+      <p>Le site <strong>esiee.zeffut.fr</strong> est un projet indépendant et non commercial, édité par <strong>Zeffut</strong>, développeur indépendant. Il n'est ni édité ni contrôlé par l'ESIEE Paris ou l'Université Gustave Eiffel.</p>
+      <p>Pour toute question ou demande sur vos données : <a href="https://github.com/Zeffut/Esiee-Paris-Salles/issues/new" target="_blank" rel="noopener noreferrer">ouvrir une demande sur GitHub</a>. N'y écrivez pas d'information personnelle : la demande est publique, il suffit d'indiquer que vous souhaitez être recontacté. Les droits d'accès et d'effacement s'exercent directement depuis la page Profil (voir plus bas).</p>
+    </section>
+
+    <section class="card">
+      <h2>Données traitées</h2>
+
+      <h3>1. Consultation des salles — tout le monde</h3>
+      <p>Aucune donnée personnelle n'est demandée. L'emploi du temps des salles provient du planning public de l'Université Gustave Eiffel. Votre navigateur garde localement (sans l'envoyer) une copie des horaires du jour, vos recherches récentes et vos choix ci-dessus.</p>
+
+      <h3>2. Mesure d'audience anonyme — Rybbit</h3>
+      <p>Pages vues, durée de visite, type d'appareil, pays et actions sur le site (salle ouverte, recherche lancée, filtre appliqué…). Rybbit ne dépose aucun cookie et sert uniquement à produire des statistiques globales : il n'est pas utilisé pour identifier les visiteurs. L'adresse IP sert seulement à déduire le pays. Rybbit est installé sur le serveur de l'éditeur : aucune donnée ne part chez un tiers.</p>
+      <p><em>Base légale :</em> intérêt légitime à mesurer l'audience d'un site, dans les conditions où la CNIL dispense de consentement. Vous pouvez vous y opposer ci-dessus.</p>
+
+      <h3>3. Analyse détaillée — PostHog, avec votre accord</h3>
+      <p>Si vous cliquez « Accepter » : parcours sur le site, clics, cartes de chaleur, performances, erreurs techniques et enregistrements de session. Les champs de saisie sont masqués dans les enregistrements et la fenêtre de connexion Google n'est jamais enregistrée. Si vous êtes connecté, seul un identifiant pseudonyme et le domaine de votre adresse (par exemple « edu.esiee.fr ») sont transmis, jamais votre nom ni votre e-mail. PostHog dépose des cookies et des données locales préfixés <code>ph_</code>, effacés si vous refusez ou retirez votre accord.</p>
+      <p><em>Base légale :</em> votre consentement, retirable à tout moment, aussi simplement qu'il a été donné.</p>
+
+      <h3>4. Compte — seulement pour réserver ou garder des favoris</h3>
+      <p>Connexion avec Google : adresse e-mail (pour vérifier qu'elle est autorisée), nom et photo de profil (affichés dans Profil). Puis vos réservations (salle, date, horaire) et vos salles favorites. Une session de connexion est gardée 7 jours dans votre navigateur.</p>
+      <p><em>Base légale :</em> exécution du service que vous demandez (réserver une salle, retrouver vos favoris).</p>
+
+      <h3>5. Sécurité</h3>
+      <p>Comme tout serveur web, celui du site enregistre des journaux techniques (adresse IP, page demandée, date) pour assurer sa sécurité et diagnostiquer les pannes.</p>
+      <p><em>Base légale :</em> intérêt légitime à sécuriser le service.</p>
+    </section>
+
+    <section class="card">
+      <h2>Durées de conservation</h2>
+      <ul>
+        <li>Réservations : supprimées <strong>12 mois</strong> après la fin du créneau.</li>
+        <li>Compte, favoris et réservations : supprimés automatiquement après <strong>24 mois</strong> sans connexion, ou immédiatement si vous supprimez votre compte.</li>
+        <li>Session de connexion : <strong>7 jours</strong>.</li>
+        <li>Votre choix de mesure d'audience : <strong>6 mois</strong>, puis la question vous est reposée.</li>
+        <li>Données PostHog : au plus <strong>12 mois</strong> ; enregistrements de session : <strong>30 jours</strong>.</li>
+        <li>Statistiques Rybbit : sans limite, car anonymes et agrégées.</li>
+        <li>Journaux techniques du serveur : au plus <strong>12 mois</strong>.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Qui reçoit ces données</h2>
+      <ul>
+        <li><strong>Hostinger International Ltd</strong> (Chypre), hébergeur du serveur du site et de son API.</li>
+        <li><strong>Google Ireland Limited</strong> (Irlande), uniquement quand vous utilisez « Continuer avec Google ». Le script de Google n'est chargé qu'à ce moment-là.</li>
+        <li><strong>PostHog Inc.</strong>, uniquement avec votre accord. Les données sont stockées dans son cloud européen (Francfort, Allemagne).</li>
+      </ul>
+      <p>Aucune donnée n'est vendue, ni utilisée à des fins publicitaires. Le site n'utilise ni Google Fonts ni régie publicitaire. Google et PostHog Inc. peuvent être soumis au droit américain ; leurs transferts éventuels hors de l'Union européenne sont encadrés par le cadre de protection des données UE–États-Unis et par les clauses contractuelles types de la Commission européenne.</p>
+    </section>
+
+    <section class="card">
+      <h2>Vos droits</h2>
+      <p>Vous disposez des droits d'accès, de rectification, d'effacement, d'opposition, de limitation et de portabilité de vos données, et du droit de retirer votre consentement à tout moment.</p>
+      <ul>
+        <li><strong>Accès et portabilité :</strong> Profil, puis « Télécharger mes données » (fichier JSON).</li>
+        <li><strong>Effacement :</strong> Profil, puis « Supprimer mon compte ». La suppression est immédiate et définitive.</li>
+        <li><strong>Rectification :</strong> nom et photo viennent de votre compte Google ; ils sont mis à jour à votre prochaine connexion.</li>
+        <li><strong>Opposition et consentement :</strong> à tout moment, dans la section « Vos choix » ci-dessus ou dans Profil.</li>
+      </ul>
+      <p>Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une réclamation à la <a href="https://www.cnil.fr/fr/plaintes" target="_blank" rel="noopener noreferrer">CNIL</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Mentions légales</h2>
+      <p><strong>Éditeur :</strong> Zeffut, développeur indépendant, site non commercial. Contact : <a href="https://github.com/Zeffut/Esiee-Paris-Salles/issues/new" target="_blank" rel="noopener noreferrer">github.com/Zeffut/Esiee-Paris-Salles</a>.</p>
+      <p><strong>Hébergeur :</strong> Hostinger International Ltd, 61 Lordou Vironos Street, 6023 Larnaca, Chypre — <a href="https://www.hostinger.fr" target="_blank" rel="noopener noreferrer">hostinger.fr</a>.</p>
+      <p><strong>Police :</strong> Manrope, sous licence SIL Open Font License, hébergée sur le site.</p>
+    </section>
+  </main>
+</div>
+
+<nav class="tabbar" aria-label="Navigation principale">
+  <div class="tabbar-inner">
+    <a class="tab" href="/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17M3 21h18M14 12h.01"/></svg>Salles</a>
+    <a class="tab" href="/reservations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Réservations</a>
+    <a class="tab" href="/profile" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</a>
+  </div>
+</nav>
+<!-- Mesure d'audience : chargée par core.js selon le consentement (voir App.consent) -->
+</body>
+</html>

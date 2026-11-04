@@ -837,6 +837,8 @@
         if (ok && !App.auth.hasServerSession) App.toast('Connexion au serveur impossible pour le moment.');
         if (ok) finish(App.auth.hasServerSession);
       };
+      // La personne a manifesté son intention de se connecter : on charge Google maintenant.
+      App.auth.preloadGoogle();
       loginSheet.showModal();
     });
   }

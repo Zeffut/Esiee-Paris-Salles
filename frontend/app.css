@@ -41,6 +41,25 @@
   --font: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
+/* Manrope hébergée sur le site (licence SIL OFL, fonts/OFL.txt) : aucun appel à
+   Google Fonts, donc aucune adresse IP de visiteur transmise à Google. */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url(fonts/manrope-latin-wght-normal.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url(fonts/manrope-latin-ext-wght-normal.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; }
@@ -594,6 +613,44 @@ dialog.alert .btn-row { margin-top: 18px; }
 
 .colophon { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); text-align: center; line-height: 1.5; }
 .colophon a { font-weight: 800; }
+
+/* réglages de confidentialité */
+.pref { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; }
+.pref + .pref { border-top: 1px solid var(--line-2); }
+.pref-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pref-text strong { font-size: 15px; font-weight: 800; }
+.pref-text span { font-size: 13px; font-weight: 600; color: var(--ink-2); line-height: 1.4; }
+.pref .btn { width: auto; flex: 0 0 auto; padding: 0 14px; }
+.grouped-btn { width: 100%; border: 0; background: none; text-align: left; font: inherit; font-size: 15px; font-weight: 700; color: var(--ink); cursor: pointer; }
+.grouped-btn--danger { color: var(--busy-ink); }
+
+/* page Confidentialité */
+.legal { display: flex; flex-direction: column; gap: 12px; padding: 16px var(--gutter) 0; }
+.legal .card { gap: 10px; }
+.legal h2 { font-size: 19px; font-weight: 800; }
+.legal h3 { margin: 8px 0 0; font-size: 15px; font-weight: 800; }
+.legal p, .legal li { font-size: 15px; font-weight: 500; color: var(--ink-2); line-height: 1.55; }
+.legal strong { color: var(--ink); font-weight: 800; }
+.legal ul { list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.legal code { font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 6px; }
+.legal-controls { margin: 0 -2px; }
+.legal a { font-weight: 700; }
+
+/* bandeau de consentement */
+.consent {
+  position: fixed; left: 0; right: 0; z-index: 30;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 8px);
+  max-width: calc(var(--page-max) - 16px); margin: 0 auto; width: calc(100% - 16px);
+  padding: 16px; border-radius: var(--r-card-lg);
+  background: var(--surface); color: var(--ink);
+  box-shadow: 0 12px 32px rgba(20, 33, 61, 0.18), 0 0 0 1px var(--line);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.hide-tabbar .consent, .page--no-tabbar ~ .consent { bottom: calc(var(--safe-bottom) + 8px); }
+.consent-text { font-size: 14px; font-weight: 600; color: var(--ink-2); line-height: 1.5; }
+.consent-text strong { color: var(--ink); font-weight: 800; }
+.consent-text a { font-weight: 800; }
+.has-consent-banner .page { padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 220px); }
 
 /* toast */
 .toast {

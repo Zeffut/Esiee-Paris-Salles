@@ -162,6 +162,67 @@
       <p class="colophon">Développé par <a href="https://portfolio.zeffut.fr" target="_blank" rel="noopener noreferrer">Zeffut</a> · Horaires issus de l'emploi du temps ESIEE</p>
     </section>`;
 
+  // Section Confidentialité : choix de mesure d'audience + droits sur le compte.
+  function privacyHTML() {
+    const account = App.auth.hasServerSession ? `
+      <ul class="grouped" style="margin-top:8px">
+        <li><button type="button" class="grouped-link grouped-link--plain grouped-btn" data-export>Télécharger mes données${App.icon.chevronRight.replace('currentColor', '#55627A')}</button></li>
+        <li><button type="button" class="grouped-link grouped-link--plain grouped-btn grouped-btn--danger" data-delete-account>Supprimer mon compte${App.icon.chevronRight.replace('currentColor', '#8A3E0C')}</button></li>
+      </ul>` : '';
+    return `
+      <section class="section">
+        <h2 class="section-label">Confidentialité</h2>
+        <div class="card" style="padding:4px 16px" id="privacyControls"></div>
+        ${account}
+        <a class="text-btn" href="/confidentialite" style="align-self:flex-start;padding:6px 0">Politique de confidentialité et mentions légales</a>
+      </section>`;
+  }
+
+  function mountPrivacy() {
+    const box = document.getElementById('privacyControls');
+    if (box && !box.childElementCount) App.consent.renderControls(box);
+  }
+
+  async function exportData(btn) {
+    btn.setAttribute('aria-busy', 'true');
+    try {
+      const data = await App.auth.request('/auth/export');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'esiee-salles-mes-donnees.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      track('data_exported');
+    } catch (err) {
+      App.toast(err.expired ? 'Session expirée. Reconnecte-toi.' : 'Téléchargement impossible pour le moment.');
+    } finally {
+      btn.removeAttribute('aria-busy');
+    }
+  }
+
+  async function deleteAccount() {
+    const ok = await App.confirmDialog({
+      title: 'Supprimer ton compte ?',
+      text: 'Ton compte, tes réservations et tes favoris seront effacés définitivement. Tu pourras toujours consulter les salles sans compte.',
+      confirm: 'Supprimer',
+      cancel: 'Annuler',
+      danger: true
+    });
+    if (!ok) return;
+    try {
+      await App.auth.request('/auth/account', { method: 'DELETE' });
+      track('account_deleted');
+      App.auth.forget();
+      App.toast('Compte supprimé');
+    } catch (err) {
+      App.toast(err.expired ? 'Session expirée. Reconnecte-toi pour supprimer ton compte.' : 'Suppression impossible pour le moment. Réessaie plus tard.');
+    }
+  }
+
   function initials(name) {
     return String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join('') || '?';
   }
@@ -193,7 +254,8 @@
 
   function renderProfile() {
     if (!App.auth.loggedIn) {
-      App.setHTML(main, loginCardHTML('Connecte-toi pour réserver', 'Pas besoin de compte pour voir les salles libres. La connexion sert à réserver et à retrouver tes favoris.') + aboutHTML);
+      App.setHTML(main, loginCardHTML('Connecte-toi pour réserver', 'Pas besoin de compte pour voir les salles libres. La connexion sert à réserver et à retrouver tes favoris.') + privacyHTML() + aboutHTML);
+      mountPrivacy();
       return;
     }
     const u = App.auth.user;
@@ -214,7 +276,9 @@
       <section class="section">
         <button type="button" class="btn btn-danger-soft" data-logout>Se déconnecter</button>
       </section>
+      ${privacyHTML()}
       ${aboutHTML}`);
+    mountPrivacy();
     const img = main.querySelector('.avatar img');
     if (img && !img.__bound) img.__bound = true, img.addEventListener('error', () => { img.parentElement.textContent = initials(u.name); });
   }
@@ -227,6 +291,9 @@
     const login = e.target.closest('[data-login]');
     if (login) { onLogin(login); return; }
     if (e.target.closest('[data-logout]')) { App.auth.logout(); return; }
+    const exp = e.target.closest('[data-export]');
+    if (exp) { exportData(exp); return; }
+    if (e.target.closest('[data-delete-account]')) { deleteAccount(); return; }
     const cancel = e.target.closest('[data-cancel]');
     if (cancel) cancelReservation(cancel.dataset.cancel);
   });
