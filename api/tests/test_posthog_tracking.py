@@ -59,13 +59,14 @@ class PosthogTrackingTests(unittest.TestCase):
 
         self.tracking.capture_event("user-42", "test_event", {"source": "test"})
 
+        # RGPD : l'identifiant de l'utilisateur n'est jamais transmis, ni aucun profil créé
         self.assertEqual(
             client.captures,
             [
                 {
-                    "distinct_id": "user-42",
+                    "distinct_id": "api-server",
                     "event": "test_event",
-                    "properties": {"app": "esiee-salles", "source": "test"},
+                    "properties": {"app": "esiee-salles", "$process_person_profile": False, "source": "test"},
                 }
             ],
         )

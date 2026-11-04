@@ -30,15 +30,22 @@ except Exception as e:  # lib absente, mauvaise version, etc.
     _client = None
 
 
+# RGPD : les événements serveur servent à compter (réservations, favoris…), pas à
+# suivre des personnes. Ils sont envoyés sous un identifiant unique « api-server »,
+# sans profil de personne, quel que soit l'utilisateur à l'origine de l'action.
+SERVER_DISTINCT_ID = 'api-server'
+
+
 def capture_event(distinct_id, event, properties=None):
-    """Émet un event serveur. Silencieux en cas d'erreur."""
+    """Émet un event serveur anonyme. Silencieux en cas d'erreur.
+    `distinct_id` est ignoré (conservé pour compatibilité des appels)."""
     if _client is None:
         return
     try:
         _client.capture(
-            distinct_id=str(distinct_id) if distinct_id else 'anonymous',
+            distinct_id=SERVER_DISTINCT_ID,
             event=event,
-            properties={'app': APP_NAME, **(properties or {})},
+            properties={'app': APP_NAME, '$process_person_profile': False, **(properties or {})},
         )
     except Exception as e:
         print(f"⚠️ PostHog capture_event échec ({event}): {e}")
@@ -51,8 +58,8 @@ def capture_exception(error, distinct_id=None, properties=None):
     try:
         _client.capture_exception(
             error,
-            distinct_id=str(distinct_id) if distinct_id else 'server',
-            properties={'app': APP_NAME, **(properties or {})},
+            distinct_id=SERVER_DISTINCT_ID,
+            properties={'app': APP_NAME, '$process_person_profile': False, **(properties or {})},
         )
     except Exception as e:
         print(f"⚠️ PostHog capture_exception échec: {e}")

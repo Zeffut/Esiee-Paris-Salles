@@ -112,28 +112,13 @@ class ESIEEUserManager:
         user_id = self._generate_user_id(email)
         current_time = datetime.now().isoformat()
 
-        # Gérer les différents formats de données Google (JWT vs OAuth)
-        google_id = google_user_info.get('sub') or google_user_info.get('id', '')
-        given_name = google_user_info.get('given_name', '')
-        family_name = google_user_info.get('family_name', '')
-
-        # Si given_name et family_name ne sont pas disponibles, essayer de les extraire du nom complet
-        if not given_name and not family_name:
-            full_name = google_user_info.get('name', '')
-            name_parts = full_name.split(' ', 1)
-            given_name = name_parts[0] if name_parts else ''
-            family_name = name_parts[1] if len(name_parts) > 1 else ''
-
-        # Préparer les données utilisateur
+        # Préparer les données utilisateur (RGPD : uniquement ce qui sert au service —
+        # e-mail pour l'accès, nom et photo pour l'affichage du profil)
         user_data = {
             "user_id": user_id,
             "email": email,
             "name": google_user_info.get('name', ''),
-            "given_name": given_name,
-            "family_name": family_name,
             "picture": google_user_info.get('picture', ''),
-            "google_id": google_id,
-            "verified_email": google_user_info.get('verified_email', False),
             "created_at": current_time,
             "last_login": current_time,
             "login_count": 1,
@@ -159,6 +144,7 @@ class ESIEEUserManager:
                 "role": existing_user.get("role", "user"),
                 "status": existing_user.get("status", "active"),
                 "preferences": existing_user.get("preferences", user_data["preferences"]),
+                "favorites": existing_user.get("favorites", []),
                 "reservations": existing_user.get("reservations", user_data["reservations"])
             })
 
@@ -262,6 +248,83 @@ class ESIEEUserManager:
             self._save_users()
 
         return len(expired_sessions)
+
+    # -------------------------------------------------------------------------
+    # RGPD : durées de conservation, export et suppression
+    # -------------------------------------------------------------------------
+
+    # Réservations terminées conservées 12 mois ; compte supprimé après 24 mois
+    # sans connexion. Ces durées sont annoncées dans la politique de confidentialité.
+    RESERVATION_RETENTION_DAYS = 365
+    ACCOUNT_RETENTION_DAYS = 730
+    # Champs autrefois enregistrés et inutiles au service (minimisation)
+    OBSOLETE_FIELDS = ("given_name", "family_name", "google_id", "verified_email")
+
+    def purge_old_data(self, now: Optional[datetime] = None) -> Dict[str, int]:
+        """Applique les durées de conservation. Retourne ce qui a été supprimé."""
+        now = now or datetime.now()
+        resa_limit = now - timedelta(days=self.RESERVATION_RETENTION_DAYS)
+        account_limit = now - timedelta(days=self.ACCOUNT_RETENTION_DAYS)
+        removed = {"reservations": 0, "accounts": 0, "fields": 0}
+
+        for user_id in list(self.users_data["users"].keys()):
+            user = self.users_data["users"][user_id]
+
+            last_seen = user.get("last_login") or user.get("created_at")
+            try:
+                inactive = datetime.fromisoformat(last_seen) < account_limit
+            except (TypeError, ValueError):
+                inactive = False
+            if inactive and user.get("role") != "admin":
+                self.delete_user(user_id, save=False)
+                removed["accounts"] += 1
+                continue
+
+            for field in self.OBSOLETE_FIELDS:
+                if field in user:
+                    del user[field]
+                    removed["fields"] += 1
+
+            history = user.get("reservations", {}).get("history", [])
+            kept = []
+            for r in history:
+                try:
+                    ended_long_ago = datetime.fromisoformat(r.get("end_time")) < resa_limit
+                except (TypeError, ValueError):
+                    ended_long_ago = False
+                if ended_long_ago:
+                    removed["reservations"] += 1
+                else:
+                    kept.append(r)
+            if len(kept) != len(history):
+                user["reservations"]["history"] = kept
+                user["reservations"]["total"] = len(kept)
+                user["reservations"]["active"] = len([r for r in kept if r.get("status") in ("active", "upcoming")])
+
+        if any(removed.values()):
+            self._save_users()
+        return removed
+
+    def export_user(self, user_id: str) -> Optional[Dict]:
+        """Toutes les données personnelles conservées pour ce compte (droit d'accès / portabilité)."""
+        user = self.users_data["users"].get(user_id)
+        if not user:
+            return None
+        sessions = [
+            {k: s.get(k) for k in ("created_at", "expires_at", "last_activity")}
+            for s in self.users_data["sessions"].values()
+            if s.get("user_id") == user_id
+        ]
+        return {"compte": dict(user), "sessions_actives": sessions}
+
+    def delete_user(self, user_id: str, save: bool = True) -> bool:
+        """Supprime le compte, ses réservations, ses favoris et toutes ses sessions."""
+        existed = self.users_data["users"].pop(user_id, None) is not None
+        for token in [t for t, s in self.users_data["sessions"].items() if s.get("user_id") == user_id]:
+            del self.users_data["sessions"][token]
+        if save:
+            self._save_users()
+        return existed
 
     def get_user_by_email(self, email: str) -> Optional[Dict]:
         """

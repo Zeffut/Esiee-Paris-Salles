@@ -117,6 +117,23 @@ def start_rate_limit_cleanup():
 start_rate_limit_cleanup()
 
 
+# RGPD : durées de conservation appliquées au démarrage puis toutes les 6 heures
+def start_retention_purge():
+    def purge_loop():
+        import time
+        while True:
+            try:
+                removed = user_manager.purge_old_data()
+                if any(removed.values()):
+                    print(f"🧹 Purge RGPD : {removed}")
+            except Exception as e:
+                print(f"⚠️ Purge RGPD impossible : {e}")
+            time.sleep(6 * 3600)
+    threading.Thread(target=purge_loop, daemon=True).start()
+
+start_retention_purge()
+
+
 # Headers de sécurité sur toutes les réponses API
 @app.after_request
 def set_security_headers(response):
@@ -1219,6 +1236,45 @@ def update_favorite(room_number):
     except Exception as e:
         print(f"Erreur lors de la mise à jour des favoris: {e}")
         capture_exception(e, properties={'endpoint': '/api/favorites', 'method': request.method})
+        return jsonify({'success': False, 'error': 'Erreur interne du serveur'}), 500
+
+# =============================================================================
+# RGPD : droit d'accès / portabilité et droit à l'effacement
+# =============================================================================
+
+@app.route('/api/auth/export', methods=['GET'])
+@rate_limit(max_requests=30, window_seconds=3600)
+def auth_export():
+    """Télécharger toutes les données conservées pour son compte (JSON)"""
+    user = get_current_user_from_request()
+    if not user:
+        return jsonify({'success': False, 'error': 'Authentification requise'}), 401
+    data = user_manager.export_user(user['user_id']) or {}
+    response = jsonify({
+        'success': True,
+        'exported_at': datetime.now().isoformat(),
+        'service': 'ESIEE Salles (esiee.zeffut.fr)',
+        'donnees': data,
+    })
+    response.headers['Content-Disposition'] = 'attachment; filename="esiee-salles-mes-donnees.json"'
+    return response
+
+@app.route('/api/auth/account', methods=['DELETE'])
+@rate_limit(max_requests=30, window_seconds=3600)
+@csrf_protected
+def auth_delete_account():
+    """Supprimer définitivement son compte, ses réservations, ses favoris et ses sessions"""
+    try:
+        user = get_current_user_from_request()
+        if not user:
+            return jsonify({'success': False, 'error': 'Authentification requise'}), 401
+        with reservation_lock, favorites_lock:
+            user_manager.delete_user(user['user_id'])
+        capture_event(None, 'account_deleted_server')
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Erreur lors de la suppression du compte: {e}")
+        capture_exception(e, properties={'endpoint': '/api/auth/account', 'method': 'DELETE'})
         return jsonify({'success': False, 'error': 'Erreur interne du serveur'}), 500
 
 @app.route('/api/admin/users', methods=['GET'])
